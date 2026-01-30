@@ -1,0 +1,5 @@
+{
+  "name": "Health Plan Readjustment Intelligence System",
+  "description": "An advanced actuarial analysis tool to calculate and project health plan premium readjustments based on claims data, VCMH, and company size, providing clear future cost scenarios.",
+  "requestFramePermissions": []
+}
