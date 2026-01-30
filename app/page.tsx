@@ -1,332 +1,426 @@
-'use client';
+"use client";
 
 import React, { useState, useEffect } from 'react';
-import { Calculator, TrendingUp, Users, Calendar, AlertCircle, CheckCircle, BarChart3, Shield, ArrowRight } from 'lucide-react';
+import { 
+  Calculator, 
+  TrendingUp, 
+  Users, 
+  Building2, 
+  Calendar, 
+  CheckCircle2, 
+  AlertCircle, 
+  ArrowRight,
+  ShieldCheck,
+  Activity,
+  DollarSign,
+  BarChart3
+} from 'lucide-react';
 
-// --- MOCK DATA: SIMULAÇÃO DE API DE OPERADORAS E VCMH ---
-const OPERATORS_DATA = [
-  { id: 'amil', name: 'Amil', vcmh: 14.5 },
-  { id: 'bradesco', name: 'Bradesco Saúde', vcmh: 15.2 },
-  { id: 'sulamerica', name: 'SulAmérica', vcmh: 14.8 },
-  { id: 'unimed', name: 'Unimed (CNU)', vcmh: 13.9 },
-  { id: 'notredame', name: 'NotreDame Intermédica', vcmh: 12.5 },
-  { id: 'porto', name: 'Porto Seguro', vcmh: 14.2 },
+// --- TIPOS E INTERFACES ---
+type CompanySize = 'PME_I' | 'PME_II' | 'EMPRESARIAL';
+
+interface FormData {
+  anniversaryMonth: string;
+  operator: string;
+  companySize: CompanySize;
+  claimsRatio: string;
+  vcmh: string;
+}
+
+interface AnalysisResult {
+  readjustment: number;
+  projections: {
+    month12: number;
+    month24: number;
+    month36: number;
+  };
+  details: {
+    poolPart: number;
+    techPart: number;
+    scenario: string;
+  };
+}
+
+// --- CONSTANTES ---
+const OPERATORS = [
+  "Bradesco Saúde", "SulAmérica", "Amil", "Unimed", "NotreDame Intermédica", 
+  "Porto Seguro", "Sompo Saúde", "Allianz", "Omint", "Prevent Senior"
 ];
 
-// --- LOGIC: CÁLCULOS ATUARIAIS ---
-type CalculationResult = {
-  readjustment: number;
-  technicalReajust: number;
-  poolReajust: number;
-  projectedCost12: number;
-  projectedCost24: number;
-  projectedCost36: number;
-  scenarioName: string;
+const MONTHS = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+];
+
+// --- COMPONENTES VISUAIS (UI) ---
+
+const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
+  <div className={`bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden ${className}`}>
+    {children}
+  </div>
+);
+
+const Badge = ({ children, variant = 'blue' }: { children: React.ReactNode, variant?: 'blue' | 'green' | 'red' | 'purple' }) => {
+  const styles = {
+    blue: "bg-blue-50 text-blue-700 border-blue-100",
+    green: "bg-emerald-50 text-emerald-700 border-emerald-100",
+    red: "bg-rose-50 text-rose-700 border-rose-100",
+    purple: "bg-violet-50 text-violet-700 border-violet-100",
+  };
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold border ${styles[variant]} flex items-center gap-1 w-fit`}>
+      {children}
+    </span>
+  );
 };
 
-export default function HealthInsuranceAdjuster() {
-  // Estado do Formulário
-  const [operator, setOperator] = useState(OPERATORS_DATA[0].id);
-  const [customVcmh, setCustomVcmh] = useState<number | ''>('');
-  const [lossRatio, setLossRatio] = useState<number | ''>(''); // Sinistralidade
-  const [lives, setLives] = useState<number | ''>('');
-  const [segment, setSegment] = useState('pme1'); // pme1, pme2, emp
-  const [currentCost, setCurrentCost] = useState<number | ''>(''); // Custo atual para projeção
-  const [results, setResults] = useState<CalculationResult | null>(null);
+const InputGroup = ({ label, icon: Icon, children }: { label: string, icon: any, children: React.ReactNode }) => (
+  <div className="space-y-1.5">
+    <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+      <Icon className="w-4 h-4 text-slate-400" />
+      {label}
+    </label>
+    <div className="relative group">
+      {children}
+    </div>
+  </div>
+);
 
-  // Efeito para buscar VCMH automático
+// --- LÓGICA DO SISTEMA ---
+
+export default function App() {
+  const [formData, setFormData] = useState<FormData>({
+    anniversaryMonth: new Date().toLocaleString('pt-BR', { month: 'long' }),
+    operator: '',
+    companySize: 'PME_I',
+    claimsRatio: '',
+    vcmh: '15.5' // Valor default simulado de API
+  });
+
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<AnalysisResult | null>(null);
+
+  // Simula busca de API
   useEffect(() => {
-    const selectedOp = OPERATORS_DATA.find(op => op.id === operator);
-    if (selectedOp) {
-      setCustomVcmh(selectedOp.vcmh);
-    }
-  }, [operator]);
+    const simulateApiFetch = async () => {
+      // Aqui você conectaria com sua API real de VCMH
+      setTimeout(() => {
+        // Simulando variação baseada na operadora (apenas visual)
+        if(formData.operator) {
+           // Lógica placeholder
+        }
+      }, 800);
+    };
+    simulateApiFetch();
+  }, [formData.operator]);
 
-  // Função "Cérebro Atuarial"
-  const calculate = () => {
-    if (lossRatio === '' || lives === '' || customVcmh === '' || currentCost === '') return;
+  const handleCalculate = (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
 
-    const vcmhDecimal = Number(customVcmh) / 100;
-    const lossRatioDecimal = Number(lossRatio) / 100;
-    const breakEvenPoint = 0.70; // Meta técnica de 70%
+    // Simulação de processamento Atuarial Complexo
+    setTimeout(() => {
+      const sinistralidade = parseFloat(formData.claimsRatio) || 0;
+      const vcmh = parseFloat(formData.vcmh) || 0;
+      let reajusteFinal = 0;
+      let cenario = "";
+      let poolPart = 0;
+      let techPart = 0;
 
-    // 1. Cálculo Técnico Puro (Fórmula Padrão de Mercado)
-    // Reajuste Técnico = (Sinistralidade / Meta) - 1 + VCMH (simplificado para projeção)
-    // Fórmula mais precisa: Variação de Custo + Desvio de Sinistralidade
-    const technicalReajust = ((lossRatioDecimal / breakEvenPoint) - 1) + vcmhDecimal;
-    
-    // 2. Definição dos Pesos (Pool vs Técnico)
-    let weightPool = 0;
-    let weightTech = 0;
-    let scenarioName = "";
+      // Lógica de Negócio (Simplificada para Demo)
+      const targetLossRatio = 70; // Meta técnica
+      const technicalNeed = ((sinistralidade / targetLossRatio) - 1) * 100 + vcmh;
+      const poolRate = 12.5; // Taxa média pool ANS simulada
 
-    if (segment === 'pme1') {
-      // 0-29 vidas: 100% Pool (Regra ANS/Mercado)
-      weightPool = 1.0;
-      weightTech = 0.0;
-      scenarioName = "PME I (Pool 100%)";
-    } else if (segment === 'pme2') {
-      // 30+ vidas: Cenário Híbrido (Ex: 50/50 ou 70/30)
-      // Vamos usar uma lógica inteligente baseada na sinistralidade
-      if (lossRatioDecimal > 0.85) {
-         // Sinistralidade alta, tende a ir para técnico para proteger a carteira, mas vamos usar 50/50
-         weightPool = 0.5;
-         weightTech = 0.5;
-         scenarioName = "PME II (Híbrido 50/50)";
-      } else {
-         weightPool = 0.7;
-         weightTech = 0.3;
-         scenarioName = "PME II (Híbrido 70/30)";
+      switch (formData.companySize) {
+        case 'PME_I': // 0-29 vidas (Pool puro)
+          reajusteFinal = poolRate;
+          cenario = "Pool de Risco (RN ANS)";
+          poolPart = 100;
+          techPart = 0;
+          break;
+        case 'PME_II': // 30+ vidas (Híbrido)
+          // 50% Pool / 50% Técnico
+          reajusteFinal = (poolRate * 0.5) + (Math.max(0, technicalNeed) * 0.5);
+          cenario = "Híbrido (50% Pool / 50% Técnico)";
+          poolPart = 50;
+          techPart = 50;
+          break;
+        case 'EMPRESARIAL': // Livre negociação
+          reajusteFinal = Math.max(vcmh, technicalNeed);
+          cenario = "Técnico Puro (Negociação)";
+          poolPart = 0;
+          techPart = 100;
+          break;
       }
-    } else {
-      // Empresarial: 100% Técnico
-      weightPool = 0.0;
-      weightTech = 1.0;
-      scenarioName = "Empresarial (Técnico Puro)";
-    }
 
-    // O "Pool" geralmente segue o VCMH de mercado + um spread de segurança, ou um índice fixo.
-    // Vamos assumir que o Reajuste Pool é muito próximo do VCMH + 2% de spread.
-    const poolReajust = vcmhDecimal + 0.02;
-
-    // 3. Reajuste Final Ponderado
-    const finalReajust = (poolReajust * weightPool) + (technicalReajust * weightTech);
-
-    // 4. Projeções Futuras (Juros Compostos sobre Inflação Médica)
-    // Trend Factor: A inflação médica tende a acelerar. 
-    const trendFactorYear1 = 1 + finalReajust;
-    const trendFactorYear2 = 1 + (vcmhDecimal * 1.1); // VCMH cresce 10% no ano 2
-    const trendFactorYear3 = 1 + (vcmhDecimal * 1.2); // VCMH cresce 20% no ano 3
-
-    const proj12 = Number(currentCost) * trendFactorYear1;
-    const proj24 = proj12 * trendFactorYear2;
-    const proj36 = proj24 * trendFactorYear3;
-
-    setResults({
-      readjustment: finalReajust * 100,
-      technicalReajust: technicalReajust * 100,
-      poolReajust: poolReajust * 100,
-      projectedCost12: proj12,
-      projectedCost24: proj24,
-      projectedCost36: proj36,
-      scenarioName
-    });
+      // Projeções com Juros Compostos (Trend Factor)
+      const trendFactor = 1.12; // 12% a.a inflação médica extra
+      
+      setResult({
+        readjustment: parseFloat(reajusteFinal.toFixed(2)),
+        details: { poolPart, techPart, scenario },
+        projections: {
+          month12: parseFloat((reajusteFinal).toFixed(2)),
+          month24: parseFloat((reajusteFinal * trendFactor).toFixed(2)),
+          month36: parseFloat((reajusteFinal * Math.pow(trendFactor, 2)).toFixed(2)),
+        }
+      });
+      setLoading(false);
+    }, 1500);
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
-      {/* HEADER */}
-      <header className="bg-slate-900 text-white p-6 shadow-lg">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 selection:bg-indigo-100 selection:text-indigo-900 pb-20">
+      
+      {/* HEADER PREMIUM */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-50 bg-opacity-80 backdrop-blur-md">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Shield className="w-8 h-8 text-emerald-400" />
+            <div className="bg-indigo-600 p-2.5 rounded-xl shadow-lg shadow-indigo-200">
+              <Calculator className="w-6 h-6 text-white" />
+            </div>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">Actuary.AI</h1>
-              <p className="text-slate-400 text-xs uppercase tracking-widest">Sistema de Inteligência de Reajuste</p>
+              <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-700 to-violet-700">
+                Atuário.AI
+              </h1>
+              <p className="text-xs text-slate-500 font-medium">Sistema de Inteligência em Saúde</p>
             </div>
           </div>
-          <div className="hidden md:flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-full border border-slate-700">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span className="text-xs font-medium text-slate-300">Banco de Dados ANS: Conectado</span>
+          <div className="flex items-center gap-4">
+             <div className="hidden md:flex items-center gap-2 text-sm text-slate-600 bg-slate-100 px-3 py-1.5 rounded-full">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span>Ambiente Seguro</span>
+             </div>
           </div>
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-10">
         
-        {/* COLUNA DA ESQUERDA: INPUTS */}
-        <div className="lg:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-            <h2 className="flex items-center gap-2 text-lg font-semibold mb-6 text-slate-800">
-              <Calculator className="w-5 h-5 text-blue-600" />
-              Parâmetros do Contrato
-            </h2>
+        {/* GRID LAYOUT */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          
+          {/* COLUNA ESQUERDA: INPUTS */}
+          <div className="lg:col-span-4 space-y-6">
+            <div className="bg-gradient-to-br from-indigo-600 to-violet-700 rounded-3xl p-6 text-white shadow-xl shadow-indigo-200">
+              <h2 className="text-2xl font-bold mb-2">Simulação</h2>
+              <p className="text-indigo-100 text-sm mb-6">Preencha os dados da apólice para gerar a projeção atuarial.</p>
+              
+              <form onSubmit={handleCalculate} className="space-y-5">
+                
+                <InputGroup label="Mês de Aniversário" icon={Calendar}>
+                  <select 
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all [&>option]:text-slate-900"
+                    value={formData.anniversaryMonth}
+                    onChange={(e) => setFormData({...formData, anniversaryMonth: e.target.value})}
+                  >
+                    {MONTHS.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                </InputGroup>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Operadora de Saúde</label>
-                <select 
-                  className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50"
-                  value={operator}
-                  onChange={(e) => setOperator(e.target.value)}
+                <InputGroup label="Operadora" icon={Building2}>
+                  <select 
+                    className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-white/50 transition-all [&>option]:text-slate-900"
+                    value={formData.operator}
+                    onChange={(e) => setFormData({...formData, operator: e.target.value})}
+                  >
+                    <option value="">Selecione...</option>
+                    {OPERATORS.map(op => <option key={op} value={op}>{op}</option>)}
+                  </select>
+                </InputGroup>
+
+                <InputGroup label="Porte da Empresa" icon={Users}>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { id: 'PME_I', label: 'PME Porte I (0-29)' },
+                      { id: 'PME_II', label: 'PME Porte II (30+)' },
+                      { id: 'EMPRESARIAL', label: 'Empresarial (Livre)' }
+                    ].map((type) => (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => setFormData({...formData, companySize: type.id as CompanySize})}
+                        className={`text-sm px-4 py-3 rounded-xl border text-left transition-all flex items-center justify-between ${
+                          formData.companySize === type.id 
+                            ? 'bg-white text-indigo-700 border-white font-semibold shadow-md' 
+                            : 'bg-white/5 border-white/10 text-white/80 hover:bg-white/10'
+                        }`}
+                      >
+                        {type.label}
+                        {formData.companySize === type.id && <CheckCircle2 className="w-4 h-4" />}
+                      </button>
+                    ))}
+                  </div>
+                </InputGroup>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <InputGroup label="Sinistralidade %" icon={Activity}>
+                    <input 
+                      type="number" 
+                      placeholder="0.00"
+                      className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-indigo-200 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+                      value={formData.claimsRatio}
+                      onChange={(e) => setFormData({...formData, claimsRatio: e.target.value})}
+                    />
+                  </InputGroup>
+                  <InputGroup label="VCMH %" icon={TrendingUp}>
+                    <input 
+                      type="number" 
+                      className="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-indigo-200 focus:outline-none focus:ring-2 focus:ring-white/50 transition-all"
+                      value={formData.vcmh}
+                      onChange={(e) => setFormData({...formData, vcmh: e.target.value})}
+                    />
+                  </InputGroup>
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={loading}
+                  className="w-full bg-white text-indigo-700 font-bold text-lg py-4 rounded-xl shadow-lg hover:shadow-xl hover:bg-indigo-50 transform hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed mt-4"
                 >
-                  {OPERATORS_DATA.map(op => (
-                    <option key={op.id} value={op.id}>{op.name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">Porte / Segmento</label>
-                <select 
-                  className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none bg-slate-50"
-                  value={segment}
-                  onChange={(e) => setSegment(e.target.value)}
-                >
-                  <option value="pme1">PME Porte I (0-29 vidas)</option>
-                  <option value="pme2">PME Porte II (30+ vidas)</option>
-                  <option value="emp">Empresarial (Livre Adesão)</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                   <label className="block text-sm font-medium text-slate-600 mb-1">Vidas</label>
-                   <div className="relative">
-                      <Users className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                      <input 
-                        type="number" 
-                        className="w-full pl-9 p-3 border border-slate-300 rounded-lg outline-none focus:border-blue-500"
-                        placeholder="Ex: 45"
-                        value={lives}
-                        onChange={(e) => setLives(Number(e.target.value))}
-                      />
-                   </div>
-                </div>
-                <div>
-                   <label className="block text-sm font-medium text-slate-600 mb-1">Sinistralidade (%)</label>
-                   <div className="relative">
-                      <AlertCircle className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                      <input 
-                        type="number" 
-                        className="w-full pl-9 p-3 border border-slate-300 rounded-lg outline-none focus:border-blue-500"
-                        placeholder="Ex: 85.5"
-                        value={lossRatio}
-                        onChange={(e) => setLossRatio(e.target.value as any)}
-                      />
-                   </div>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-600 mb-1">VCMH Aplicável (%)</label>
-                <div className="relative">
-                   <TrendingUp className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-                   <input 
-                     type="number" 
-                     className="w-full pl-9 p-3 border border-slate-300 rounded-lg outline-none focus:border-blue-500 bg-blue-50 text-blue-900 font-semibold"
-                     value={customVcmh}
-                     onChange={(e) => setCustomVcmh(Number(e.target.value))}
-                   />
-                </div>
-                <p className="text-xs text-slate-500 mt-1">Busca automática ou inserção manual.</p>
-              </div>
-
-              <div>
-                 <label className="block text-sm font-medium text-slate-600 mb-1">Custo Total Atual (R$)</label>
-                 <input 
-                   type="number" 
-                   className="w-full p-3 border border-slate-300 rounded-lg outline-none focus:border-blue-500"
-                   placeholder="Ex: 50000.00"
-                   value={currentCost}
-                   onChange={(e) => setCurrentCost(e.target.value as any)}
-                 />
-              </div>
-
-              <button 
-                onClick={calculate}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl shadow-lg transition-all transform active:scale-95 flex justify-center items-center gap-2"
-              >
-                <BarChart3 className="w-5 h-5" />
-                Gerar Análise Atuarial
-              </button>
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-indigo-700 border-t-transparent rounded-full animate-spin" />
+                      Calculando...
+                    </>
+                  ) : (
+                    <>
+                      Gerar Análise <ArrowRight className="w-5 h-5" />
+                    </>
+                  )}
+                </button>
+              </form>
             </div>
           </div>
-        </div>
 
-        {/* COLUNA DA DIREITA: RESULTADOS */}
-        <div className="lg:col-span-2 space-y-6">
-          {!results ? (
-            <div className="h-full flex flex-col items-center justify-center bg-white rounded-xl border border-slate-200 border-dashed p-12 text-slate-400">
-              <BarChart3 className="w-16 h-16 mb-4 opacity-20" />
-              <p className="text-lg">Preencha os dados ao lado para processar a inteligência.</p>
-            </div>
-          ) : (
-            <>
-              {/* CARD DESTAQUE: REAJUSTE CALCULADO */}
-              <div className="bg-gradient-to-r from-slate-900 to-slate-800 rounded-xl p-8 shadow-xl text-white relative overflow-hidden">
-                <div className="relative z-10">
-                  <h3 className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-1">Reajuste Sugerido ({results.scenarioName})</h3>
-                  <div className="flex items-end gap-2">
-                    <span className="text-6xl font-bold tracking-tighter text-emerald-400">
-                      {results.readjustment.toFixed(2)}%
-                    </span>
-                    <span className="mb-2 text-slate-300 font-medium">aplicação imediata</span>
-                  </div>
-                  <div className="mt-6 flex gap-6 text-sm">
-                    <div>
-                      <span className="block text-slate-500">Viés Técnico</span>
-                      <span className="font-mono text-white">{results.technicalReajust.toFixed(2)}%</span>
-                    </div>
-                    <div>
-                      <span className="block text-slate-500">Viés Pool</span>
-                      <span className="font-mono text-white">{results.poolReajust.toFixed(2)}%</span>
-                    </div>
-                  </div>
+          {/* COLUNA DIREITA: RESULTADOS */}
+          <div className="lg:col-span-8">
+            {!result ? (
+              <div className="h-full min-h-[500px] flex flex-col items-center justify-center bg-white rounded-3xl border border-dashed border-slate-300 text-slate-400 p-8 text-center">
+                <div className="bg-slate-50 p-6 rounded-full mb-4">
+                  <BarChart3 className="w-12 h-12 text-slate-300" />
                 </div>
-                {/* Background decorative blob */}
-                <div className="absolute right-0 top-0 w-64 h-64 bg-emerald-500 rounded-full mix-blend-overlay filter blur-3xl opacity-20 -mr-16 -mt-16"></div>
+                <h3 className="text-xl font-semibold text-slate-600">Aguardando Dados</h3>
+                <p className="max-w-xs mt-2">Preencha os parâmetros à esquerda para visualizar a projeção atuarial inteligente.</p>
               </div>
+            ) : (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                
+                {/* CARD PRINCIPAL */}
+                <Card className="p-8 border-l-8 border-l-indigo-600 relative overflow-hidden">
+                   <div className="absolute top-0 right-0 p-4 opacity-10">
+                      <Calculator className="w-32 h-32 text-indigo-900" />
+                   </div>
+                   <div className="relative z-10">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+                      <div>
+                        <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-1">Reajuste Sugerido</h2>
+                        <div className="text-5xl font-extrabold text-slate-900 tracking-tight">
+                          {result.readjustment}%
+                        </div>
+                      </div>
+                      <div className="flex flex-col gap-2">
+                         <Badge variant="purple">{result.details.scenario}</Badge>
+                         <div className="text-xs text-slate-500 text-right">
+                           Composição: {result.details.poolPart}% Pool | {result.details.techPart}% Técnico
+                         </div>
+                      </div>
+                    </div>
 
-              {/* GRID DE PROJEÇÕES */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <ProjectionCard 
-                  months={12} 
-                  value={results.projectedCost12} 
-                  baseline={Number(currentCost)} 
-                />
-                <ProjectionCard 
-                  months={24} 
-                  value={results.projectedCost24} 
-                  baseline={Number(currentCost)} 
-                />
-                <ProjectionCard 
-                  months={36} 
-                  value={results.projectedCost36} 
-                  baseline={Number(currentCost)} 
-                />
-              </div>
+                    <div className="h-px bg-slate-100 my-6" />
 
-              {/* ANÁLISE QUALITATIVA (SIMULADA IA) */}
-              <div className="bg-blue-50 border border-blue-100 p-6 rounded-xl">
-                <h4 className="flex items-center gap-2 text-blue-900 font-semibold mb-3">
-                  <CheckCircle className="w-5 h-5" />
-                  Insight da IA Atuarial
-                </h4>
-                <p className="text-blue-800 text-sm leading-relaxed">
-                  Considerando uma sinistralidade de <strong>{lossRatio}%</strong> e o VCMH de <strong>{customVcmh}%</strong>, 
-                  o contrato apresenta um desvio técnico. Para o porte <strong>{segment.toUpperCase()}</strong>, 
-                  o sistema aplicou uma lógica de {results.scenarioName}. Recomenda-se negociação focada em 
-                  gestão de crônicos para reduzir o impacto no ano 2.
-                </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                       {/* Projeção 12 Meses */}
+                       <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <span className="text-xs font-semibold text-slate-500 uppercase">Curto Prazo (12m)</span>
+                          </div>
+                          <p className="text-2xl font-bold text-slate-700">{result.projections.month12}%</p>
+                          <p className="text-xs text-slate-400 mt-1">Impacto imediato</p>
+                       </div>
+
+                       {/* Projeção 24 Meses */}
+                       <div className="bg-white rounded-xl p-4 border border-indigo-100 shadow-sm ring-2 ring-indigo-50">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                            <span className="text-xs font-semibold text-indigo-600 uppercase">Médio Prazo (24m)</span>
+                          </div>
+                          <p className="text-2xl font-bold text-indigo-900">{result.projections.month24}%</p>
+                          <p className="text-xs text-indigo-400 mt-1">Tendência VCMH+Tech</p>
+                       </div>
+
+                       {/* Projeção 36 Meses */}
+                       <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-2 h-2 rounded-full bg-rose-500" />
+                            <span className="text-xs font-semibold text-slate-500 uppercase">Longo Prazo (36m)</span>
+                          </div>
+                          <p className="text-2xl font-bold text-slate-700">{result.projections.month36}%</p>
+                          <p className="text-xs text-slate-400 mt-1">Cenário Crítico</p>
+                       </div>
+                    </div>
+                   </div>
+                </Card>
+
+                {/* DETALHES TÉCNICOS */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <Card className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="bg-rose-100 p-2 rounded-lg">
+                        <AlertCircle className="w-5 h-5 text-rose-600" />
+                      </div>
+                      <h3 className="font-semibold text-slate-800">Análise de Risco</h3>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-500">Sinistralidade Atual</span>
+                        <span className={`font-medium ${parseFloat(formData.claimsRatio) > 75 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                          {formData.claimsRatio}%
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2">
+                        <div 
+                          className={`h-2 rounded-full ${parseFloat(formData.claimsRatio) > 75 ? 'bg-rose-500' : 'bg-emerald-500'}`} 
+                          style={{ width: `${Math.min(parseFloat(formData.claimsRatio), 100)}%` }}
+                        />
+                      </div>
+                      <p className="text-xs text-slate-400 mt-2">
+                        O Break-Even Point (Ponto de Equilíbrio) considerado para esta operadora é de 70-75%.
+                      </p>
+                    </div>
+                  </Card>
+
+                  <Card className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="bg-emerald-100 p-2 rounded-lg">
+                        <DollarSign className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <h3 className="font-semibold text-slate-800">Insights da IA</h3>
+                    </div>
+                    <ul className="space-y-2">
+                      <li className="flex gap-2 text-sm text-slate-600">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span>VCMH aplicado segue tendência de mercado das top 30 operadoras.</span>
+                      </li>
+                      <li className="flex gap-2 text-sm text-slate-600">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span>Cálculo otimizado para {formData.companySize.replace('_', ' ')}.</span>
+                      </li>
+                      <li className="flex gap-2 text-sm text-slate-600">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                        <span>Sugestão: Negociar aporte técnico para reduzir o reajuste em 36m.</span>
+                      </li>
+                    </ul>
+                  </Card>
+                </div>
+
               </div>
-            </>
-          )}
+            )}
+          </div>
         </div>
       </main>
-    </div>
-  );
-}
-
-// Componente Auxiliar (Dentro do mesmo arquivo para evitar erro de import)
-function ProjectionCard({ months, value, baseline }: { months: number, value: number, baseline: number }) {
-  const increase = ((value - baseline) / baseline) * 100;
-  
-  return (
-    <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2 text-slate-500 text-sm font-medium">
-          <Calendar className="w-4 h-4" />
-          {months} Meses
-        </div>
-        <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">
-          +{increase.toFixed(0)}% acum.
-        </span>
-      </div>
-      <div className="text-2xl font-bold text-slate-800">
-        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)}
-      </div>
-      <p className="text-xs text-slate-400 mt-1">Custo projetado mensal</p>
     </div>
   );
 }
