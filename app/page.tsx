@@ -123,7 +123,10 @@ export default function App() {
       const sinistralidade = parseFloat(formData.claimsRatio) || 0;
       const vcmh = parseFloat(formData.vcmh) || 0;
       let reajusteFinal = 0;
-      let cenario = "";
+      
+      // CORREÇÃO: Variável renomeada para 'scenario' (inglês) para bater com a interface
+      let scenario = ""; 
+      
       let poolPart = 0;
       let techPart = 0;
 
@@ -135,20 +138,20 @@ export default function App() {
       switch (formData.companySize) {
         case 'PME_I': // 0-29 vidas (Pool puro)
           reajusteFinal = poolRate;
-          cenario = "Pool de Risco (RN ANS)";
+          scenario = "Pool de Risco (RN ANS)";
           poolPart = 100;
           techPart = 0;
           break;
         case 'PME_II': // 30+ vidas (Híbrido)
           // 50% Pool / 50% Técnico
           reajusteFinal = (poolRate * 0.5) + (Math.max(0, technicalNeed) * 0.5);
-          cenario = "Híbrido (50% Pool / 50% Técnico)";
+          scenario = "Híbrido (50% Pool / 50% Técnico)";
           poolPart = 50;
           techPart = 50;
           break;
         case 'EMPRESARIAL': // Livre negociação
           reajusteFinal = Math.max(vcmh, technicalNeed);
-          cenario = "Técnico Puro (Negociação)";
+          scenario = "Técnico Puro (Negociação)";
           poolPart = 0;
           techPart = 100;
           break;
@@ -159,7 +162,7 @@ export default function App() {
       
       setResult({
         readjustment: parseFloat(reajusteFinal.toFixed(2)),
-        details: { poolPart, techPart, scenario },
+        details: { poolPart, techPart, scenario }, // Agora a variável 'scenario' existe!
         projections: {
           month12: parseFloat((reajusteFinal).toFixed(2)),
           month24: parseFloat((reajusteFinal * trendFactor).toFixed(2)),
