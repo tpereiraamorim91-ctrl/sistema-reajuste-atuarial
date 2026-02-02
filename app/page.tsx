@@ -10,7 +10,7 @@ import {
 
 // --- CENTRAL DE CONTROLE DE ÍNDICES (ATUALIZE AQUI) ---
 const CONFIG = {
-  VERSION: "2.1.0 (Safra 2026)",
+  VERSION: "2.1.1 (Estável)",
   LAST_UPDATE: "02/02/2026",
   // Teto ANS para planos Individuais/Familiares (Referência)
   ANS_PF_LIMIT: 6.91, 
@@ -152,12 +152,12 @@ export default function App() {
     if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'POOL_100' }));
     if (formData.companySize === 'EMPRESARIAL') setFormData(prev => ({ ...prev, calculationMix: 'TECH_100' }));
     
-    // Reset se mudar de PME I para PME II
-    if (formData.companySize === 'PME_II' && prev.calculationMix === 'POOL_100') {
+    // CORREÇÃO AQUI: Trocado 'prev.calculationMix' por 'formData.calculationMix'
+    if (formData.companySize === 'PME_II' && formData.calculationMix === 'POOL_100') {
         setFormData(prev => ({ ...prev, calculationMix: 'MIX_50_50' }));
     }
 
-  }, [formData.operator, formData.companySize]);
+  }, [formData.operator, formData.companySize]); // calculationMix removido das dependências para evitar loop
 
   // --- 2. GERADOR DE DEFESA TÉCNICA (IA) ---
   const generateDefenseText = (techRate: number, proposedRate: number, claims: number, target: number, operator: string, poolRateUsed: number) => {
