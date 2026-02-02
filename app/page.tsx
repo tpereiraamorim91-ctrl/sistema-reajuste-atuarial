@@ -147,7 +147,9 @@ export default function App() {
     // Ajusta o Mix automaticamente
     if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'POOL_100' }));
     if (formData.companySize === 'EMPRESARIAL') setFormData(prev => ({ ...prev, calculationMix: 'TECH_100' }));
-    if (formData.companySize === 'PME_II' && (prev => prev.calculationMix === 'POOL_100')) {
+    
+    // Se mudar para PME II e estiver travado no Pool, destrava para o Mix Padrão
+    if (formData.companySize === 'PME_II' && formData.calculationMix === 'POOL_100') {
         setFormData(prev => ({ ...prev, calculationMix: 'MIX_50_50' }));
     }
 
@@ -203,23 +205,20 @@ export default function App() {
       let technicalNeedRaw = (((claims / targetLossRatio) - 1) * 100) + vcmh;
       
       // Tratamento de VCMH em casos de baixa sinistralidade (Floor)
-      // Se a sinistralidade for muito baixa, o técnico pode dar negativo. 
-      // Empresarial aceita negativo? Raramente. PME? Nunca.
-      // Vamos assumir o VCMH como piso se for PME, e livre se Empresarial.
       if (formData.companySize !== 'EMPRESARIAL' && technicalNeedRaw < vcmh) {
-          technicalNeedRaw = vcmh; // Garante pelo menos a inflação no PME
+          technicalNeedRaw = vcmh; 
       }
 
       // Aplicação do Mix
       let technicalFinal = 0;
-      const poolIndexUsed = formData.companySize === 'PME_I' ? POOL_MARKET_AVG : POOL_MARKET_AVG; // Poderia ser ANS aqui
+      const poolIndexUsed = formData.companySize === 'PME_I' ? POOL_MARKET_AVG : POOL_MARKET_AVG;
 
       switch (formData.calculationMix) {
         case 'POOL_100':
-            technicalFinal = poolIndexUsed; // PME I segue Pool
+            technicalFinal = poolIndexUsed; 
             break;
         case 'TECH_100':
-            technicalFinal = technicalNeedRaw;
+            technicalFinal = Math.max(technicalNeedRaw, 0); // Técnico Puro
             break;
         case 'MIX_50_50':
             technicalFinal = (poolIndexUsed * 0.5) + (technicalNeedRaw * 0.5);
@@ -229,8 +228,8 @@ export default function App() {
             break;
       }
 
-      // Projeções Preditivas (Trend Factor + Envelhecimento Populacional)
-      const agingFactor = 1.02; // +2% ao ano por envelhecimento natural da carteira
+      // Projeções
+      const agingFactor = 1.02;
       const trendFactor = (1 + (vcmh / 100)) * agingFactor;
       
       const valProposed = invoice * (1 + (proposed / 100));
@@ -341,6 +340,7 @@ export default function App() {
                             >
                                 <option value="MIX_50_50">50% Pool / 50% Tec</option>
                                 <option value="MIX_70_30">70% Pool / 30% Tec</option>
+                                <option value="TECH_100">100% Técnico (Individual)</option>
                             </select>
                         </InputGroup>
                     )}
@@ -444,7 +444,8 @@ export default function App() {
                             <div>
                                 <h3 className="text-xs font-bold text-emerald-700 uppercase tracking-widest">Defesa Técnica</h3>
                                 <p className="text-[10px] text-slate-500">
-                                    {formData.calculationMix === 'POOL_100' ? 'Baseado no Pool de Risco' : 'Baseado no Desequilíbrio Técnico'}
+                                    {formData.calculationMix === 'POOL_100' ? 'Baseado no Pool de Risco' : 
+                                     formData.calculationMix === 'TECH_100' ? 'Baseado no Desequilíbrio (Individual)' : 'Mix Híbrido (Pool + Técnico)'}
                                 </p>
                             </div>
                             <Badge variant="green">Justo</Badge>
