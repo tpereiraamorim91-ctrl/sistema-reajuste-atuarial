@@ -11,7 +11,7 @@ import {
 
 // --- CONFIGURAÇÃO E DADOS (SAFRA 2026 - AUDITADO) ---
 const CONFIG = {
-  VERSION: "14.0.0 (Didactic AI)",
+  VERSION: "14.1.0 (Didactic AI Final)",
   LAST_UPDATE: "16/02/2026",
   
   POOL_2026: {
@@ -347,7 +347,7 @@ export default function App() {
                   </h1>
               </div>
               <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] mt-1 pl-12 uppercase">
-                Intelligence System v14.0
+                Intelligence System v14.1
               </p>
           </div>
           
