@@ -6,13 +6,13 @@ import {
   CheckCircle2, AlertTriangle, ArrowRight, ShieldAlert, 
   Activity, DollarSign, Briefcase, LineChart, Lock, 
   FileText, Copy, Scale, Info, RefreshCw, Settings,
-  UserPlus, Percent, Database, Edit3, Shield, Zap, Thermometer, BarChart3, Clock
+  UserPlus, Percent, Database, Edit3, Shield, Zap, Thermometer, BarChart3, Clock, Brain, BookOpen, Microscope, Lightbulb
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO E DADOS (SAFRA 2026 - AUDITADO) ---
 const CONFIG = {
-  VERSION: "12.0.0 (Financial Storytelling)",
-  LAST_UPDATE: "15/02/2026",
+  VERSION: "13.0.0 (AI + Didactic)",
+  LAST_UPDATE: "16/02/2026",
   
   // TABELA OFICIAL POOL PME I (RN 565)
   POOL_2026: {
@@ -150,7 +150,7 @@ export default function App() {
     let indexValue = 15.0;
     
     if (formData.companySize === 'EMPRESARIAL') {
-        indexValue = 0; // VCMH 0 para Empresarial
+        indexValue = 0; 
     } else if (formData.companySize === 'PME_I') {
         indexValue = formData.operator && CONFIG.POOL_2026[formData.operator] 
             ? CONFIG.POOL_2026[formData.operator] 
@@ -280,7 +280,7 @@ export default function App() {
       const technicalFinal = manualTechInput !== null ? manualTechInput : technicalCalculated;
       const isManualOverride = manualTechInput !== null;
 
-      // Status de Negociação
+      // Status
       let status: NegotiationStatus = 'MEDIUM';
       const diff = proposed - technicalFinal;
       if (technicalFinal < 0) status = 'EASY'; 
@@ -288,8 +288,8 @@ export default function App() {
       else if (diff > 10) status = 'CRITICAL';
       else status = 'MEDIUM';
 
-      // Projeções
-      let agingRiskLoad = 0.02;
+      // Aging & Projeções
+      let agingRiskLoad = 0.02; // Default 2%
       if (avgAge > 59) agingRiskLoad = 0.06;
       else if (avgAge > 49) agingRiskLoad = 0.04;
       else if (avgAge < 30) agingRiskLoad = 0.01;
@@ -341,7 +341,7 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#020617] font-sans text-slate-300 pb-20 selection:bg-[#a3e635] selection:text-slate-900">
       
-      {/* HEADER CEDO SEGUROS FUTURIST */}
+      {/* HEADER */}
       <div className="bg-[#020617]/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
           <div>
@@ -354,7 +354,7 @@ export default function App() {
                   </h1>
               </div>
               <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] mt-1 pl-12 uppercase">
-                Intelligence System v12.0
+                Intelligence System v13.0
               </p>
           </div>
           
@@ -424,7 +424,6 @@ export default function App() {
                     )}
                 </div>
 
-                {/* PAINEL TÉCNICO */}
                 <div className="p-5 bg-[#0b1120] rounded-xl border border-slate-800 space-y-5 relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#a3e635] to-emerald-600"></div>
                     
@@ -607,7 +606,7 @@ export default function App() {
                     </div>
                 </Card>
 
-                {/* 3. STORYTELLING FINANCEIRO (NOVO CARD APARTADO) */}
+                {/* 3. STORYTELLING FINANCEIRO */}
                 <Card className="border border-slate-800">
                     <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-[#0b1120]">
                         <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
@@ -616,7 +615,6 @@ export default function App() {
                         <Badge variant="blue">Visão de Longo Prazo</Badge>
                     </div>
                     <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                        
                         {/* ANO 1 */}
                         <div className="bg-slate-900/50 rounded-xl p-4 border border-emerald-500/30 relative overflow-hidden group">
                             <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl -mr-6 -mt-6"></div>
@@ -626,7 +624,6 @@ export default function App() {
                                 <div className="text-xs text-slate-500">Anual: {formatCurrency(result.financialImpact.projections.m12 * 12)}</div>
                             </div>
                         </div>
-
                         {/* ANO 2 */}
                         <div className="bg-slate-900/50 rounded-xl p-4 border border-yellow-500/30 relative overflow-hidden group">
                              <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-500/10 rounded-full blur-xl -mr-6 -mt-6"></div>
@@ -636,7 +633,6 @@ export default function App() {
                                 <div className="text-xs text-slate-500">Anual: {formatCurrency(result.financialImpact.projections.m24 * 12)}</div>
                             </div>
                         </div>
-
                         {/* ANO 3 */}
                         <div className="bg-slate-900/50 rounded-xl p-4 border border-rose-500/30 relative overflow-hidden group">
                              <div className="absolute top-0 right-0 w-16 h-16 bg-rose-500/10 rounded-full blur-xl -mr-6 -mt-6"></div>
@@ -646,11 +642,86 @@ export default function App() {
                                 <div className="text-xs text-slate-500">Anual: {formatCurrency(result.financialImpact.projections.m36 * 12)}</div>
                             </div>
                         </div>
-
                     </div>
                 </Card>
 
-                {/* 4. DEFESA TÉCNICA */}
+                {/* 4. BLOCO INTELIGÊNCIA ARTIFICIAL & FUTURO (NOVO) */}
+                <Card className="border border-indigo-500/30 overflow-hidden relative">
+                     <div className="absolute inset-0 bg-indigo-950/20 backdrop-blur-sm z-0"></div>
+                     <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-0">
+                         {/* Esquerda: O Número */}
+                         <div className="md:col-span-5 bg-gradient-to-br from-indigo-900/40 to-slate-900 p-6 flex flex-col justify-center border-r border-indigo-500/20">
+                             <div className="flex items-center gap-2 mb-4">
+                                 <Brain className="w-5 h-5 text-indigo-400" />
+                                 <h3 className="text-xs font-bold text-indigo-200 uppercase tracking-widest">Cedo AI: Future Vision 2027</h3>
+                             </div>
+                             <div className="text-5xl font-black text-white tracking-tighter mb-2">
+                                 {result.nextYearProjection}%
+                             </div>
+                             <p className="text-xs text-indigo-300/80 leading-relaxed">
+                                 Projeção estimada de reajuste para o próximo ciclo se a gestão de risco não for iniciada imediatamente.
+                             </p>
+                         </div>
+                         {/* Direita: A Explicação Didática */}
+                         <div className="md:col-span-7 p-6 bg-[#0f172a]/80">
+                             <h4 className="text-[10px] font-bold text-slate-500 uppercase mb-4 flex items-center gap-2">
+                                 <Microscope className="w-3 h-3" /> Decomposição do Fator de Risco
+                             </h4>
+                             <div className="space-y-3">
+                                 <div className="flex justify-between items-center text-xs">
+                                     <span className="text-slate-400">Inflação Médica (VCMH)</span>
+                                     <span className="font-mono text-white font-bold">{result.usedVcmh}%</span>
+                                 </div>
+                                 <div className="w-full h-1 bg-slate-800 rounded-full"><div style={{width: `${Math.min(result.usedVcmh * 3, 100)}%`}} className="h-full bg-slate-500 rounded-full"></div></div>
+                                 
+                                 <div className="flex justify-between items-center text-xs">
+                                     <span className="text-slate-400">Aging Factor (Envelhecimento)</span>
+                                     <span className="font-mono text-indigo-400 font-bold">+{result.agingFactor.toFixed(1)}%</span>
+                                 </div>
+                                 <div className="w-full h-1 bg-slate-800 rounded-full"><div style={{width: `${result.agingFactor * 10}%`}} className="h-full bg-indigo-500 rounded-full"></div></div>
+
+                                 <div className="flex justify-between items-center text-xs">
+                                     <span className="text-slate-400">Tendência de Sinistralidade</span>
+                                     <span className="font-mono text-rose-400 font-bold">+{Math.max(0, (result.nextYearProjection - result.usedVcmh - result.agingFactor)).toFixed(1)}%</span>
+                                 </div>
+                                 <div className="w-full h-1 bg-slate-800 rounded-full"><div style={{width: '40%'}} className="h-full bg-rose-500 rounded-full"></div></div>
+                             </div>
+                         </div>
+                     </div>
+                </Card>
+
+                {/* 5. METODOLOGIA DIDÁTICA (NOVO) */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <Card className="p-5 border-t-2 border-t-slate-600 bg-[#0f172a]">
+                        <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center mb-3">
+                            <Calculator className="w-4 h-4 text-slate-300" />
+                        </div>
+                        <h4 className="text-xs font-bold text-white uppercase mb-2">1. A Matemática</h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed">
+                            Utilizamos o modelo multiplicativo atuarial: <code>((Sinistro * VCMH) / Meta) - 1</code>. Isso corrige o erro de arrasto que planilhas comuns ignoram.
+                        </p>
+                    </Card>
+                    <Card className="p-5 border-t-2 border-t-slate-600 bg-[#0f172a]">
+                        <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center mb-3">
+                            <BookOpen className="w-4 h-4 text-slate-300" />
+                        </div>
+                        <h4 className="text-xs font-bold text-white uppercase mb-2">2. O Compliance</h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed">
+                            Se for PME I, travamos na RN 565. Se for Empresarial, zeramos o VCMH para forçar a negociação real. Respeitamos a regra do jogo.
+                        </p>
+                    </Card>
+                    <Card className="p-5 border-t-2 border-t-slate-600 bg-[#0f172a]">
+                        <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center mb-3">
+                            <Lightbulb className="w-4 h-4 text-slate-300" />
+                        </div>
+                        <h4 className="text-xs font-bold text-white uppercase mb-2">3. A Estratégia</h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed">
+                            Comparamos o Técnico vs. Proposto. Se a operadora errou para baixo, defendemos a manutenção. Se errou para cima, atacamos com dados.
+                        </p>
+                    </Card>
+                </div>
+
+                {/* 6. DEFESA TÉCNICA */}
                 <Card className="border-l-4 border-l-blue-600">
                     <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
                         <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
