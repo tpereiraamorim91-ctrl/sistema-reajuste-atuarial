@@ -11,9 +11,10 @@ import {
 
 // --- CONFIGURAÇÃO E DADOS (SAFRA 2026) ---
 const CONFIG = {
-  VERSION: "9.0.0 (Ultimate Negotiator)",
-  LAST_UPDATE: "13/02/2026",
+  VERSION: "10.0.0 (Safety Audit)",
+  LAST_UPDATE: "14/02/2026",
   
+  // Tabela Exata do Pool (RN 565)
   POOL_2026: {
     "Ameplan": 13.50, "Amil": 15.98, "Ana Costa": 15.13, "Assim Saúde": 15.59,
     "Blue Med": 19.38, "Bradesco Saúde": 15.11, "Care Plus": 18.81,
@@ -27,6 +28,7 @@ const CONFIG = {
     "Alice": 12.50, "Média de Mercado": 14.50
   } as Record<string, number>,
 
+  // VCMH Financeiro (PME II / Empresarial)
   VCMH_INDICES: {
     "Bradesco Saúde": 16.5, "SulAmérica": 15.8, "Amil": 14.2,
     "NotreDame Intermédica": 13.8, "Porto Seguro": 14.9, "Seguros Unimed": 14.0,
@@ -64,12 +66,12 @@ interface AnalysisResult {
   proposedReadjustment: number;
   savingPotential: number;
   isNegative: boolean;
-  isTechnicalHigher: boolean; // Técnico > Proposto (Operadora boazinha)
+  isTechnicalHigher: boolean;
   isManualOverride: boolean;
   isVcmhManual: boolean;
   usedVcmh: number;
   agingFactor: number;
-  nextYearProjection: number; // IA Projection 2027
+  nextYearProjection: number;
   financialImpact: {
     current: number;
     proposedValue: number;
@@ -141,9 +143,12 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
-  // Auto-detectar índices
+  // --- 1. RESET INTELIGENTE & AUTO-DETECT ---
+  // Atualiza o índice (VCMH) baseado na seleção e limpa o resultado anterior
   useEffect(() => {
     let indexValue = 15.0;
+    
+    // Lógica de Detecção de Índice
     if (formData.companySize === 'PME_I') {
         indexValue = formData.operator && CONFIG.POOL_2026[formData.operator] 
             ? CONFIG.POOL_2026[formData.operator] 
@@ -153,16 +158,54 @@ export default function App() {
             ? CONFIG.VCMH_INDICES[formData.operator] 
             : CONFIG.VCMH_INDICES["Média de Mercado"];
     }
+
+    // Atualiza VCMH apenas (os campos são limpos nos Handlers de Change abaixo)
     setFormData(prev => ({ ...prev, vcmh: indexValue.toFixed(2) }));
     
+    // Auto-Set Mix
     if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'POOL_100' }));
     if (formData.companySize === 'EMPRESARIAL') setFormData(prev => ({ ...prev, calculationMix: 'TECH_100' }));
     if (formData.companySize === 'PME_II' && formData.calculationMix === 'POOL_100') {
         setFormData(prev => ({ ...prev, calculationMix: 'MIX_50_50' }));
     }
+
+    // Limpa o resultado da tela se mudar parâmetros chave
+    setResult(null); 
+
   }, [formData.operator, formData.companySize]);
 
-  // --- GERADOR DE DEFESA (ESTRATÉGIA CEDO SEGUROS) ---
+
+  // --- HANDLERS COM RESET AUTOMÁTICO ---
+  const handleOperatorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setFormData(prev => ({
+          ...prev,
+          operator: e.target.value,
+          // RESET DE SEGURANÇA
+          claimsRatio: '',
+          currentInvoice: '',
+          proposedReadjustment: '',
+          manualTechnical: '',
+          manualVcmh: '',
+          averageAge: ''
+      }));
+  };
+
+  const handleSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setFormData(prev => ({
+          ...prev,
+          companySize: e.target.value as CompanySize,
+          // RESET DE SEGURANÇA
+          claimsRatio: '',
+          currentInvoice: '',
+          proposedReadjustment: '',
+          manualTechnical: '',
+          manualVcmh: '',
+          averageAge: ''
+      }));
+  };
+
+
+  // --- GERADOR DE DEFESA ---
   const generateDefenseText = (
       techRate: number, proposedRate: number, claims: number, 
       target: number, operator: string, isNegative: boolean, 
@@ -175,7 +218,7 @@ export default function App() {
     
     if (formData.companySize === 'PME_I') {
         text += `1. ANÁLISE DE POOL (RN 565 ANS)\n`;
-        text += `Para contratos PME (até 29 vidas), o índice deve seguir estritamente o agrupamento. O índice apurado para esta carteira é de ${usedVcmh.toFixed(2)}%. `;
+        text += `Para contratos PME (até 29 vidas), o índice deve seguir estritamente o agrupamento. O índice apurado para esta carteira na operadora é de ${usedVcmh.toFixed(2)}%. `;
         if (proposedRate > usedVcmh) text += `A proposta apresenta desvio injustificado do índice oficial.\n\n`;
         else text += `Ratificamos o índice de Pool, mas solicitamos flexibilização comercial para retenção do cliente.\n\n`;
     } else {
@@ -183,11 +226,9 @@ export default function App() {
         text += `Apólice com sinistralidade de ${claims.toFixed(2)}% (Meta: ${target}%).\n`;
         
         if (isTechnicalHigher) {
-             // ESTRATÉGIA: O Técnico deu maior que o proposto. Aceitar o proposto como "bom", mas chorar mais um pouco.
-             text += `Nossa auditoria aponta que o reajuste técnico estrito seria de ${techRate.toFixed(2)}%. Reconhecemos que a proposta de ${proposedRate.toFixed(2)}% já contempla um deságio comercial em relação ao risco real.\n`;
+             text += `Nossa auditoria aponta que o reajuste técnico estrito seria de ${techRate.toFixed(2)}%. Reconhecemos que a proposta de ${proposedRate.toFixed(2)}% já contempla um deságio comercial.\n`;
              text += `Contudo, para garantir a renovação e evitar a busca por mercado, solicitamos a manutenção deste patamar ou uma concessão adicional de relacionamento.\n\n`;
         } else {
-             // ESTRATÉGIA: O Técnico deu menor. Pau na operadora.
              text += `O cálculo atuarial demonstra que o reajuste necessário para equilíbrio é de APENAS ${techRate.toFixed(2)}%, inferior aos ${proposedRate.toFixed(2)}% solicitados.\n`;
              text += `Não há justificativa técnica para aplicação de índice superior ao equilíbrio contratual.\n\n`;
         }
@@ -201,7 +242,6 @@ export default function App() {
     if (isNegative) {
         text += `Solicitamos ISENÇÃO TOTAL (0%) devido à performance positiva do contrato.\n\n`;
     } else if (isTechnicalHigher) {
-        // Se o técnico é maior, pedimos para manter o proposto ou reduzir levemente
         text += `Solicitamos a confirmação do índice de ${proposedRate.toFixed(2)}% (ou inferior), formalizando o deságio técnico aplicado.\n\n`;
     } else {
         text += `Solicitamos a retificação da proposta para o teto de ${techRate.toFixed(2)}%.\n\n`;
@@ -228,13 +268,14 @@ export default function App() {
       const usedVcmh = !isNaN(manualVcmhVal) ? manualVcmhVal : dbVcmh;
       const isVcmhManual = !isNaN(manualVcmhVal);
 
-      // FÓRMULA PADRÃO OURO: ((Sinistro * (1+VCMH)) / Meta) - 1
+      // --- CÁLCULO TÉCNICO (PRECISION MATH) ---
       const vcmhFactor = 1 + (usedVcmh / 100);
       const currentLossRatio = claims / 100;
       const targetRatio = targetLossRatio / 100;
 
       let technicalNeedRaw = 0;
       if (formData.companySize === 'PME_I') {
+         // CORREÇÃO PME I: O técnico é SEMPRE o índice da tabela (ou manual)
          technicalNeedRaw = usedVcmh;
       } else {
          if (targetRatio > 0) {
@@ -244,10 +285,12 @@ export default function App() {
       }
       
       let technicalCalculated = 0;
-      const poolRef = CONFIG.POOL_2026["Média de Mercado"];
+      const poolRef = CONFIG.POOL_2026["Média de Mercado"]; // Apenas para mix, se usado
 
       switch (formData.calculationMix) {
-        case 'POOL_100': technicalCalculated = poolRef; break;
+        // CORREÇÃO: POOL_100 deve usar o technicalNeedRaw (que já contém o valor da operadora)
+        // e não a média de mercado genérica.
+        case 'POOL_100': technicalCalculated = technicalNeedRaw; break; 
         case 'TECH_100': technicalCalculated = technicalNeedRaw; break;
         case 'MIX_50_50': technicalCalculated = (poolRef * 0.5) + (technicalNeedRaw * 0.5); break;
         case 'MIX_70_30': technicalCalculated = (poolRef * 0.7) + (technicalNeedRaw * 0.3); break;
@@ -256,21 +299,16 @@ export default function App() {
       const technicalFinal = manualTechInput !== null ? manualTechInput : technicalCalculated;
       const isManualOverride = manualTechInput !== null;
 
-      // Aging Factor e Projeção IA 2027
-      let agingRiskLoad = 0.02; // Base de envelhecimento natural
+      // Aging & Projeções
+      let agingRiskLoad = 0.02;
       if (avgAge > 59) agingRiskLoad = 0.06;
       else if (avgAge > 49) agingRiskLoad = 0.04;
       else if (avgAge < 30) agingRiskLoad = 0.01;
       
-      // Projeção IA 2027: (TechFinal + VCMH) * Aging
-      // Estimativa grosseira de quanto o plano vai subir no próximo ano se nada mudar
       const nextYearProjection = (Math.max(technicalFinal, 0) * 0.5) + usedVcmh + (agingRiskLoad * 100);
-
       const trendFactor = (1 + (usedVcmh / 100) + agingRiskLoad);
       const valProposed = invoice * (1 + (proposed / 100));
       
-      // LÓGICA DE DEFESA REVERSA:
-      // Se Técnico > Proposto, o "Justo" para mostrar no card é o Proposto (pois já é um ganho)
       const fairRateDisplay = (technicalFinal > proposed && proposed > 0) ? proposed : technicalFinal;
       const valFair = invoice * (1 + (fairRateDisplay / 100));
       
@@ -359,7 +397,7 @@ export default function App() {
                   <select 
                     className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-[#a3e635] outline-none"
                     value={formData.operator}
-                    onChange={(e) => setFormData({...formData, operator: e.target.value})}
+                    onChange={handleOperatorChange} // USO DO NOVO HANDLER
                   >
                     <option value="">Selecione...</option>
                     {OPERATORS_LIST.map(op => <option key={op} value={op}>{op}</option>)}
@@ -371,7 +409,7 @@ export default function App() {
                       <select
                         className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-[#a3e635] outline-none"
                         value={formData.companySize}
-                        onChange={(e) => setFormData({...formData, companySize: e.target.value as CompanySize})}
+                        onChange={handleSizeChange} // USO DO NOVO HANDLER
                       >
                          <option value="PME_I">PME I (0-29)</option>
                          <option value="PME_II">PME II (30+)</option>
@@ -552,7 +590,7 @@ export default function App() {
                     </Card>
                 </div>
 
-                {/* 2. CARD IA PREDICTIVE 2027 (NOVO) */}
+                {/* 2. CARD IA PREDICTIVE 2027 */}
                 <Card className="border-t border-indigo-500/50 relative overflow-hidden">
                      <div className="absolute top-0 right-0 p-4 opacity-10">
                         <BrainCircuit className="w-24 h-24 text-indigo-400" />
@@ -567,7 +605,7 @@ export default function App() {
                                 Projeção de Risco Próxima Safra: <span className="text-indigo-400">{result.nextYearProjection}%</span>
                             </h3>
                             <p className="text-xs text-slate-400 mt-1 max-w-md">
-                                Baseado no envelhecimento natural da carteira e tendência do VCMH atual. Se nada for feito (gestão de saúde), este é o cenário provável.
+                                Baseado no envelhecimento natural da carteira e tendência do VCMH atual. Se nada for feito, este é o cenário provável.
                             </p>
                         </div>
                         <div className="hidden md:block">
@@ -576,7 +614,7 @@ export default function App() {
                      </div>
                 </Card>
 
-                {/* 3. CARD DIDÁTICO (NOVO) */}
+                {/* 3. CARD DIDÁTICO */}
                 <Card className="bg-[#151e32]">
                     <div className="px-6 py-4 border-b border-slate-700 flex items-center gap-2">
                         <Lightbulb className="w-4 h-4 text-yellow-400" />
