@@ -6,13 +6,13 @@ import {
   CheckCircle2, AlertTriangle, ArrowRight, ShieldAlert, 
   Activity, DollarSign, Briefcase, LineChart, Lock, 
   FileText, Copy, Scale, Info, RefreshCw, Settings,
-  UserPlus, Percent, Database, Edit3, Shield
+  UserPlus, Percent, Database, Edit3, Shield, BrainCircuit, Lightbulb
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO E DADOS (SAFRA 2026) ---
 const CONFIG = {
-  VERSION: "8.0.0 (Cedo Enterprise)",
-  LAST_UPDATE: "12/02/2026",
+  VERSION: "9.0.0 (Ultimate Negotiator)",
+  LAST_UPDATE: "13/02/2026",
   
   POOL_2026: {
     "Ameplan": 13.50, "Amil": 15.98, "Ana Costa": 15.13, "Assim Saúde": 15.59,
@@ -52,8 +52,8 @@ interface FormData {
   breakEvenPoint: string;
   averageAge: string;
   claimsRatio: string;
-  vcmh: string; // Automático
-  manualVcmh: string; // Novo: Manual
+  vcmh: string; 
+  manualVcmh: string; 
   currentInvoice: string;
   proposedReadjustment: string;
   manualTechnical: string; 
@@ -64,12 +64,12 @@ interface AnalysisResult {
   proposedReadjustment: number;
   savingPotential: number;
   isNegative: boolean;
-  isTechnicalHigher: boolean;
+  isTechnicalHigher: boolean; // Técnico > Proposto (Operadora boazinha)
   isManualOverride: boolean;
-  isVcmhManual: boolean; // Flag para VCMH manual
-  usedVcmh: number; // Valor final usado no cálculo
+  isVcmhManual: boolean;
+  usedVcmh: number;
   agingFactor: number;
-  projectedClaimsRatio: number;
+  nextYearProjection: number; // IA Projection 2027
   financialImpact: {
     current: number;
     proposedValue: number;
@@ -91,7 +91,7 @@ const Card = ({ children, className = "" }: { children: React.ReactNode; classNa
   </div>
 );
 
-const Badge = ({ children, variant = 'gray' }: { children: React.ReactNode, variant?: 'gray' | 'green' | 'red' | 'blue' | 'purple' | 'orange' }) => {
+const Badge = ({ children, variant = 'gray' }: { children: React.ReactNode, variant?: 'gray' | 'green' | 'red' | 'blue' | 'purple' | 'orange' | 'lime' }) => {
   const styles = {
     gray: "bg-slate-700 text-slate-300 border-slate-600",
     blue: "bg-blue-900/50 text-blue-200 border-blue-800",
@@ -99,6 +99,7 @@ const Badge = ({ children, variant = 'gray' }: { children: React.ReactNode, vari
     red: "bg-red-900/50 text-red-300 border-red-800",
     purple: "bg-purple-900/50 text-purple-300 border-purple-800",
     orange: "bg-orange-900/50 text-orange-300 border-orange-800",
+    lime: "bg-[#a3e635]/20 text-[#a3e635] border-[#a3e635]/50",
   };
   return (
     <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${styles[variant]} uppercase tracking-wider`}>
@@ -109,8 +110,8 @@ const Badge = ({ children, variant = 'gray' }: { children: React.ReactNode, vari
 
 const InputGroup = ({ label, icon: Icon, children, highlight = false }: { label: string, icon: any, children: React.ReactNode, highlight?: boolean }) => (
   <div className="space-y-1.5">
-    <label className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${highlight ? 'text-lime-400' : 'text-slate-400'}`}>
-      <Icon className={`w-3.5 h-3.5 ${highlight ? 'text-lime-400' : 'text-slate-500'}`} />
+    <label className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${highlight ? 'text-[#a3e635]' : 'text-slate-400'}`}>
+      <Icon className={`w-3.5 h-3.5 ${highlight ? 'text-[#a3e635]' : 'text-slate-500'}`} />
       {label}
     </label>
     <div className="relative">
@@ -131,7 +132,7 @@ export default function App() {
     averageAge: '',
     claimsRatio: '',
     vcmh: '15.00',
-    manualVcmh: '', // Novo
+    manualVcmh: '',
     currentInvoice: '',
     proposedReadjustment: '',
     manualTechnical: '' 
@@ -140,7 +141,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
-  // Auto-detectar índices (Database)
+  // Auto-detectar índices
   useEffect(() => {
     let indexValue = 15.0;
     if (formData.companySize === 'PME_I') {
@@ -154,16 +155,14 @@ export default function App() {
     }
     setFormData(prev => ({ ...prev, vcmh: indexValue.toFixed(2) }));
     
-    // Auto-ajuste de Mix Padrão
     if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'POOL_100' }));
     if (formData.companySize === 'EMPRESARIAL') setFormData(prev => ({ ...prev, calculationMix: 'TECH_100' }));
-    // Se mudar para PME II e estiver travado, libera o mix padrão
     if (formData.companySize === 'PME_II' && formData.calculationMix === 'POOL_100') {
         setFormData(prev => ({ ...prev, calculationMix: 'MIX_50_50' }));
     }
   }, [formData.operator, formData.companySize]);
 
-  // --- GERADOR DE DEFESA ---
+  // --- GERADOR DE DEFESA (ESTRATÉGIA CEDO SEGUROS) ---
   const generateDefenseText = (
       techRate: number, proposedRate: number, claims: number, 
       target: number, operator: string, isNegative: boolean, 
@@ -171,36 +170,44 @@ export default function App() {
       usedVcmh: number, isVcmhManual: boolean
   ) => {
     const currentYear = new Date().getFullYear();
-    let text = `À\n${operator || 'Operadora'}\nRef: Gestão de Apólice Cedo Seguros - Safra ${currentYear}\n\n`;
-    text += `Prezados,\n\nRecebemos o reajuste proposto de ${proposedRate.toFixed(2)}%. Atuando como consultoria especializada na gestão deste contrato, apresentamos nossa análise técnica:\n\n`;
+    let text = `À\n${operator || 'Operadora'}\nRef: Negociação de Reajuste Cedo Seguros - Safra ${currentYear}\n\n`;
+    text += `Prezados,\n\nRecebemos a proposta de reajuste de ${proposedRate.toFixed(2)}%. Como consultoria especializada na gestão de risco deste contrato, apresentamos nossa posição técnica:\n\n`;
     
     if (formData.companySize === 'PME_I') {
-        text += `1. POOL DE RISCO (RN 565)\nIdentificamos o índice de referência de ${usedVcmh.toFixed(2)}% para esta carteira. `;
-        if (proposedRate > usedVcmh) text += `O valor proposto excede o índice oficial da operadora.\n\n`;
-        else text += `Solicitamos avaliação comercial para redução do impacto.\n\n`;
+        text += `1. ANÁLISE DE POOL (RN 565 ANS)\n`;
+        text += `Para contratos PME (até 29 vidas), o índice deve seguir estritamente o agrupamento. O índice apurado para esta carteira é de ${usedVcmh.toFixed(2)}%. `;
+        if (proposedRate > usedVcmh) text += `A proposta apresenta desvio injustificado do índice oficial.\n\n`;
+        else text += `Ratificamos o índice de Pool, mas solicitamos flexibilização comercial para retenção do cliente.\n\n`;
     } else {
-        text += `1. ANÁLISE TÉCNICA (Sinistralidade ${claims.toFixed(2)}% | Meta ${target}%)\n`;
+        text += `1. SINISTRALIDADE VS. EQUILÍBRIO TÉCNICO\n`;
+        text += `Apólice com sinistralidade de ${claims.toFixed(2)}% (Meta: ${target}%).\n`;
         
-        if (isManual) {
-            text += `Conforme modelagem atuarial interna da Cedo Seguros, o reajuste técnico estrito para equilíbrio da apólice é de ${techRate.toFixed(2)}%.\n\n`;
+        if (isTechnicalHigher) {
+             // ESTRATÉGIA: O Técnico deu maior que o proposto. Aceitar o proposto como "bom", mas chorar mais um pouco.
+             text += `Nossa auditoria aponta que o reajuste técnico estrito seria de ${techRate.toFixed(2)}%. Reconhecemos que a proposta de ${proposedRate.toFixed(2)}% já contempla um deságio comercial em relação ao risco real.\n`;
+             text += `Contudo, para garantir a renovação e evitar a busca por mercado, solicitamos a manutenção deste patamar ou uma concessão adicional de relacionamento.\n\n`;
         } else {
-             if (isTechnicalHigher) {
-                text += `O reajuste técnico calculado aponta para ${techRate.toFixed(2)}%. Reconhecemos o abrandamento na proposta enviada, mas solicitamos manutenção comercial visando o longo prazo.\n\n`;
-             } else {
-                text += `A necessidade técnica real é de apenas ${techRate.toFixed(2)}%, inferior à proposta enviada. O contrato apresenta condições de equilíbrio com índice menor.\n\n`;
-             }
+             // ESTRATÉGIA: O Técnico deu menor. Pau na operadora.
+             text += `O cálculo atuarial demonstra que o reajuste necessário para equilíbrio é de APENAS ${techRate.toFixed(2)}%, inferior aos ${proposedRate.toFixed(2)}% solicitados.\n`;
+             text += `Não há justificativa técnica para aplicação de índice superior ao equilíbrio contratual.\n\n`;
         }
         
-        text += `2. INDEXADOR FINANCEIRO (VCMH)\n`;
-        if (isVcmhManual) text += `Consideramos o índice customizado/negociado de ${usedVcmh.toFixed(2)}%, mais aderente à realidade da apólice.\n\n`;
-        else text += `Aplicado VCMH de mercado de ${usedVcmh.toFixed(2)}%.\n\n`;
+        text += `2. INDEXADOR (VCMH)\n`;
+        if (isVcmhManual) text += `Considerado VCMH negociado de ${usedVcmh.toFixed(2)}%.\n\n`;
+        else text += `Aplicado VCMH de referência: ${usedVcmh.toFixed(2)}%.\n\n`;
     }
 
-    text += `PLEITO:\n`;
-    if (isNegative) text += `Diante do resultado superavitário, solicitamos ISENÇÃO TOTAL (0%).\n\n`;
-    else text += `Solicitamos a revisão para o teto de ${techRate.toFixed(2)}%, garantindo a sustentabilidade do contrato.\n\n`;
+    text += `PLEITO FINAL:\n`;
+    if (isNegative) {
+        text += `Solicitamos ISENÇÃO TOTAL (0%) devido à performance positiva do contrato.\n\n`;
+    } else if (isTechnicalHigher) {
+        // Se o técnico é maior, pedimos para manter o proposto ou reduzir levemente
+        text += `Solicitamos a confirmação do índice de ${proposedRate.toFixed(2)}% (ou inferior), formalizando o deságio técnico aplicado.\n\n`;
+    } else {
+        text += `Solicitamos a retificação da proposta para o teto de ${techRate.toFixed(2)}%.\n\n`;
+    }
     
-    text += `Atenciosamente,\nCedo Seguros - Gestão Corporativa`;
+    text += `Atenciosamente,\nCedo Seguros - Gestão de Saúde`;
     return text;
   };
 
@@ -209,41 +216,33 @@ export default function App() {
     setLoading(true);
 
     setTimeout(() => {
-      // Inputs Seguros (Evita NaN)
       const claims = parseFloat(formData.claimsRatio) || 0;
       const dbVcmh = parseFloat(formData.vcmh) || 0;
-      const manualVcmhVal = parseFloat(formData.manualVcmh); // Pode ser NaN se vazio
+      const manualVcmhVal = parseFloat(formData.manualVcmh);
       const invoice = parseFloat(formData.currentInvoice) || 0;
       const proposed = parseFloat(formData.proposedReadjustment) || 0;
       const targetLossRatio = parseFloat(formData.breakEvenPoint) || 75;
       const avgAge = parseFloat(formData.averageAge) || 0;
       const manualTechInput = formData.manualTechnical ? parseFloat(formData.manualTechnical) : null;
 
-      // DECISÃO DO VCMH: Usa Manual se existir, senão usa DB
       const usedVcmh = !isNaN(manualVcmhVal) ? manualVcmhVal : dbVcmh;
       const isVcmhManual = !isNaN(manualVcmhVal);
 
-      // 1. Cálculo Matemático Multiplicativo (Padrão Ouro)
-      // Necessidade = [ (Sinistro * (1+VCMH)) / Meta ] - 1
+      // FÓRMULA PADRÃO OURO: ((Sinistro * (1+VCMH)) / Meta) - 1
       const vcmhFactor = 1 + (usedVcmh / 100);
       const currentLossRatio = claims / 100;
       const targetRatio = targetLossRatio / 100;
 
       let technicalNeedRaw = 0;
-      
-      // Se for PME I, o "Técnico" é apenas o índice da tabela (ou manual)
       if (formData.companySize === 'PME_I') {
          technicalNeedRaw = usedVcmh;
       } else {
-         // Para os demais, calcula o desequilíbrio
-         // Proteção contra divisão por zero
          if (targetRatio > 0) {
             const requiredPremiumRatio = (currentLossRatio * vcmhFactor) / targetRatio;
             technicalNeedRaw = (requiredPremiumRatio - 1) * 100;
          }
       }
       
-      // 2. Aplicação do Mix
       let technicalCalculated = 0;
       const poolRef = CONFIG.POOL_2026["Média de Mercado"];
 
@@ -251,35 +250,33 @@ export default function App() {
         case 'POOL_100': technicalCalculated = poolRef; break;
         case 'TECH_100': technicalCalculated = technicalNeedRaw; break;
         case 'MIX_50_50': technicalCalculated = (poolRef * 0.5) + (technicalNeedRaw * 0.5); break;
-        case 'MIX_70_30': technicalCalculated = (poolRef * 0.7) + (technicalNeedRaw * 0.3); break; // 70% Pool / 30% Tec
+        case 'MIX_70_30': technicalCalculated = (poolRef * 0.7) + (technicalNeedRaw * 0.3); break;
       }
 
-      // DECISÃO FINAL: Usa o Manual Override se existir, senão usa o Calculado
       const technicalFinal = manualTechInput !== null ? manualTechInput : technicalCalculated;
       const isManualOverride = manualTechInput !== null;
 
-      // 3. Aging Factor
-      let agingRiskLoad = 0;
-      if (avgAge > 59) agingRiskLoad = 0.05;
-      else if (avgAge > 49) agingRiskLoad = 0.03;
-      else if (avgAge < 30) agingRiskLoad = -0.01;
+      // Aging Factor e Projeção IA 2027
+      let agingRiskLoad = 0.02; // Base de envelhecimento natural
+      if (avgAge > 59) agingRiskLoad = 0.06;
+      else if (avgAge > 49) agingRiskLoad = 0.04;
+      else if (avgAge < 30) agingRiskLoad = 0.01;
       
-      // Trend Factor (VCMH + Envelhecimento)
+      // Projeção IA 2027: (TechFinal + VCMH) * Aging
+      // Estimativa grosseira de quanto o plano vai subir no próximo ano se nada mudar
+      const nextYearProjection = (Math.max(technicalFinal, 0) * 0.5) + usedVcmh + (agingRiskLoad * 100);
+
       const trendFactor = (1 + (usedVcmh / 100) + agingRiskLoad);
-      
       const valProposed = invoice * (1 + (proposed / 100));
-      const valFair = invoice * (1 + (technicalFinal / 100));
+      
+      // LÓGICA DE DEFESA REVERSA:
+      // Se Técnico > Proposto, o "Justo" para mostrar no card é o Proposto (pois já é um ganho)
+      const fairRateDisplay = (technicalFinal > proposed && proposed > 0) ? proposed : technicalFinal;
+      const valFair = invoice * (1 + (fairRateDisplay / 100));
       
       const isNegative = technicalFinal <= 0;
       const isTechnicalHigher = technicalFinal > proposed;
       
-      // Projeção de Sinistralidade Reversa
-      // Quanto será o sinistro ano que vem se aplicarmos o reajuste técnico? (Deveria ser igual a Meta)
-      let projectedClaims = 0;
-      if (technicalFinal > -100) { // Evita divisão por zero
-          projectedClaims = ((claims * vcmhFactor) / (1 + (technicalFinal/100)));
-      }
-
       const defense = generateDefenseText(
           technicalFinal, proposed, claims, targetLossRatio, 
           formData.operator, isNegative, isTechnicalHigher, isManualOverride,
@@ -289,14 +286,14 @@ export default function App() {
       setResult({
         technicalReadjustment: parseFloat(technicalFinal.toFixed(2)),
         proposedReadjustment: proposed,
-        savingPotential: parseFloat((proposed - technicalFinal).toFixed(2)),
+        savingPotential: parseFloat((proposed - fairRateDisplay).toFixed(2)),
         isNegative,
         isTechnicalHigher,
         isManualOverride,
         isVcmhManual,
         usedVcmh,
         agingFactor: agingRiskLoad * 100,
-        projectedClaimsRatio: parseFloat(projectedClaims.toFixed(2)),
+        nextYearProjection: parseFloat(nextYearProjection.toFixed(2)),
         financialImpact: {
             current: invoice,
             proposedValue: valProposed,
@@ -322,14 +319,13 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
           <div>
               <div className="flex items-center gap-2">
-                  {/* LOGO SIMULADO CEDO SEGUROS */}
                   <Shield className="w-8 h-8 text-[#a3e635]" fill="currentColor" />
                   <h1 className="text-3xl font-black text-white tracking-tight">
                     CEDO <span className="text-[#a3e635]">SEGUROS</span>
                   </h1>
               </div>
               <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] mt-1 pl-10">
-                INTELIGÊNCIA CORPORATIVA & ATUARIAL
+                NEGOCIAÇÃO ESTRATÉGICA & ATUARIAL
               </p>
           </div>
           
@@ -337,7 +333,7 @@ export default function App() {
              <div className="hidden md:block text-right">
                 <div className="text-[10px] uppercase text-slate-500 font-bold">Safra 2026</div>
                 <div className="text-xs text-[#a3e635] font-mono flex items-center gap-1 justify-end">
-                    <Database className="w-3 h-3" /> BASE ATUALIZADA
+                    <Database className="w-3 h-3" /> ONLINE
                 </div>
              </div>
           </div>
@@ -353,7 +349,7 @@ export default function App() {
                 <div className="px-6 py-5 border-b border-slate-700/50 flex justify-between items-center">
                     <h2 className="text-xs font-bold text-white uppercase flex items-center gap-2 tracking-wider">
                         <Briefcase className="w-4 h-4 text-[#a3e635]" />
-                        Dados da Apólice
+                        Parâmetros
                     </h2>
                 </div>
               
@@ -402,7 +398,7 @@ export default function App() {
                 <div className="p-5 bg-[#0f172a] rounded-lg border border-slate-700/50 space-y-5">
                     <div className="flex justify-between items-end">
                          <div className="w-1/2 pr-2">
-                             <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">VCMH Padrão</span>
+                             <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">VCMH Ref.</span>
                              <div className="text-xs text-slate-300 font-mono bg-[#1e293b] py-2 px-3 rounded border border-slate-700">
                                 {formData.vcmh}%
                              </div>
@@ -421,7 +417,7 @@ export default function App() {
                     </div>
                     
                     <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Break-Even Point (Meta)</label>
+                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Meta (Break-Even)</label>
                         <div className="flex bg-[#1e293b] p-1 rounded border border-slate-700">
                             {['70', '72', '75'].map(bp => (
                                 <button
@@ -486,7 +482,7 @@ export default function App() {
                   disabled={loading}
                   className="w-full bg-[#a3e635] hover:bg-[#84cc16] text-slate-900 font-bold text-sm py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-3"
                 >
-                  {loading ? 'Processando Cedo AI...' : <>CALCULAR CENÁRIO <ArrowRight className="w-4 h-4" /></>}
+                  {loading ? 'Calculando Cedo AI...' : <>CALCULAR CENÁRIO <ArrowRight className="w-4 h-4" /></>}
                 </button>
               </form>
             </Card>
@@ -498,7 +494,7 @@ export default function App() {
               <div className="h-full min-h-[600px] flex flex-col items-center justify-center bg-[#1e293b]/50 border border-dashed border-slate-700 rounded-3xl text-slate-500 p-10 text-center">
                 <Activity className="w-16 h-16 text-slate-700 mb-4" />
                 <h3 className="text-lg font-bold uppercase tracking-wider text-slate-400">Cedo Seguros Analytics</h3>
-                <p className="text-sm mt-2">Aguardando processamento de dados.</p>
+                <p className="text-sm mt-2">A melhor defesa para seu plano de saúde.</p>
               </div>
             ) : (
               <div className="space-y-6 animate-in fade-in duration-700">
@@ -522,77 +518,93 @@ export default function App() {
                         </div>
                     </Card>
 
-                    {/* CARD TÉCNICO CEDO */}
-                    <Card className={`bg-[#1e293b] border-l-4 ${result.isManualOverride ? 'border-l-[#a3e635]' : result.isTechnicalHigher ? 'border-l-yellow-500' : 'border-l-emerald-500'}`}>
+                    {/* CARD JUSTO/NEGOCIADO */}
+                    <Card className={`bg-[#1e293b] border-l-4 ${result.isTechnicalHigher ? 'border-l-yellow-500' : 'border-l-[#a3e635]'}`}>
                         <div className="p-6">
                             <div className="flex justify-between mb-4">
                                 <div>
-                                    <h3 className={`text-xs font-bold uppercase tracking-widest ${result.isManualOverride ? 'text-[#a3e635]' : result.isTechnicalHigher ? 'text-yellow-400' : 'text-emerald-400'}`}>
-                                        {result.isManualOverride ? 'Técnico (Manual)' : 'Técnico (Calculado)'}
+                                    <h3 className={`text-xs font-bold uppercase tracking-widest ${result.isTechnicalHigher ? 'text-yellow-400' : 'text-[#a3e635]'}`}>
+                                        {result.isTechnicalHigher ? 'Manutenção (Flexibilizado)' : 'Reajuste Justo'}
                                     </h3>
                                 </div>
-                                <Badge variant={result.isManualOverride ? 'green' : result.isTechnicalHigher ? 'orange' : 'green'}>
-                                    CEDO IA
+                                <Badge variant={result.isTechnicalHigher ? 'orange' : 'lime'}>
+                                    {result.isTechnicalHigher ? 'Conquista' : 'Cedo IA'}
                                 </Badge>
                             </div>
                             <div className="flex items-baseline gap-1">
-                                <span className={`text-5xl font-black ${result.isManualOverride ? 'text-[#a3e635]' : result.isTechnicalHigher ? 'text-yellow-500' : 'text-emerald-500'}`}>
-                                    {result.technicalReadjustment}
+                                <span className={`text-5xl font-black ${result.isTechnicalHigher ? 'text-yellow-500' : 'text-[#a3e635]'}`}>
+                                    {result.isTechnicalHigher ? result.proposedReadjustment : result.technicalReadjustment}
                                 </span>
                                 <span className="text-xl font-bold text-slate-500">%</span>
                             </div>
                             <div className="mt-4 pt-4 border-t border-slate-700">
-                                {result.savingPotential > 0 ? (
-                                    <p className="text-xs font-bold text-emerald-400 flex items-center gap-2">
-                                        <ArrowRight className="w-4 h-4" /> Economia: {formatCurrency(result.financialImpact.accumulatedSaving)}/ano
+                                {result.isTechnicalHigher ? (
+                                    <p className="text-xs font-bold text-yellow-500">
+                                        Risco real: {result.technicalReadjustment}%. Você está ganhando da técnica.
                                     </p>
                                 ) : (
-                                    <p className="text-xs text-slate-500">Sem margem técnica aparente.</p>
+                                    <p className="text-xs font-bold text-[#a3e635] flex items-center gap-2">
+                                        <ArrowRight className="w-4 h-4" /> Economia: {formatCurrency(result.financialImpact.accumulatedSaving)}/ano
+                                    </p>
                                 )}
                             </div>
                         </div>
                     </Card>
                 </div>
 
-                {/* 2. TABELA DE PROJEÇÃO */}
-                <Card>
-                    <div className="bg-[#0f172a] px-6 py-4 flex justify-between items-center border-b border-slate-700">
-                        <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
-                            <LineChart className="w-4 h-4 text-[#a3e635]" />
-                            Projeção Futura (36 Meses)
-                        </h3>
-                        {result.isVcmhManual && (
-                             <Badge variant="blue">VCMH Manual: {result.usedVcmh}%</Badge>
-                        )}
+                {/* 2. CARD IA PREDICTIVE 2027 (NOVO) */}
+                <Card className="border-t border-indigo-500/50 relative overflow-hidden">
+                     <div className="absolute top-0 right-0 p-4 opacity-10">
+                        <BrainCircuit className="w-24 h-24 text-indigo-400" />
+                     </div>
+                     <div className="p-6 flex justify-between items-center relative z-10">
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <Badge variant="purple">IA PREDICTIVE 2027</Badge>
+                                <span className="text-[10px] text-slate-500 uppercase font-bold">Visão de Longo Prazo</span>
+                            </div>
+                            <h3 className="text-2xl font-bold text-white">
+                                Projeção de Risco Próxima Safra: <span className="text-indigo-400">{result.nextYearProjection}%</span>
+                            </h3>
+                            <p className="text-xs text-slate-400 mt-1 max-w-md">
+                                Baseado no envelhecimento natural da carteira e tendência do VCMH atual. Se nada for feito (gestão de saúde), este é o cenário provável.
+                            </p>
+                        </div>
+                        <div className="hidden md:block">
+                             <TrendingUp className="w-12 h-12 text-indigo-500" />
+                        </div>
+                     </div>
+                </Card>
+
+                {/* 3. CARD DIDÁTICO (NOVO) */}
+                <Card className="bg-[#151e32]">
+                    <div className="px-6 py-4 border-b border-slate-700 flex items-center gap-2">
+                        <Lightbulb className="w-4 h-4 text-yellow-400" />
+                        <h3 className="text-xs font-bold text-white uppercase">Entenda o Cálculo (Transparência)</h3>
                     </div>
-                    
-                    <div className="p-0">
-                        <table className="w-full text-sm text-left text-slate-300">
-                            <thead className="text-xs text-slate-500 uppercase bg-[#151e32] border-b border-slate-700">
-                                <tr>
-                                    <th className="px-6 py-3">Ciclo</th>
-                                    <th className="px-6 py-3">Fatura Estimada</th>
-                                    <th className="px-6 py-3">Custo Anual</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-700/50">
-                                {[
-                                    { l: 'Ano 1', v: result.financialImpact.projections.m12 },
-                                    { l: 'Ano 2', v: result.financialImpact.projections.m24 },
-                                    { l: 'Ano 3', v: result.financialImpact.projections.m36 },
-                                ].map((row, i) => (
-                                    <tr key={i} className="hover:bg-[#1e293b] transition-colors">
-                                        <td className="px-6 py-4 font-bold text-white border-l-2 border-slate-600">{row.l}</td>
-                                        <td className="px-6 py-4 font-mono text-[#a3e635]">{formatCurrency(row.v)}</td>
-                                        <td className="px-6 py-4 font-mono text-slate-400">{formatCurrency(row.v * 12)}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                    <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="space-y-2">
+                            <span className="text-xs font-bold text-slate-500 uppercase">Passo 1: Financeiro</span>
+                            <p className="text-sm text-slate-300">
+                                Aplicamos a inflação médica (VCMH) de <strong>{result.usedVcmh}%</strong> sobre o custo atual para projetar o preço base do próximo ano.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <span className="text-xs font-bold text-slate-500 uppercase">Passo 2: Técnico</span>
+                            <p className="text-sm text-slate-300">
+                                Comparamos o uso real ({formData.claimsRatio}%) com a meta ({formData.breakEvenPoint}%). O desvio gera o fator de reequilíbrio.
+                            </p>
+                        </div>
+                        <div className="space-y-2">
+                            <span className="text-xs font-bold text-slate-500 uppercase">Passo 3: Decisão</span>
+                            <p className="text-sm text-slate-300">
+                                A IA pondera os dois fatores. Se o cálculo técnico for menor que a proposta, geramos a defesa para redução.
+                            </p>
+                        </div>
                     </div>
                 </Card>
 
-                {/* 3. DEFESA TÉCNICA */}
+                {/* 4. DEFESA TÉCNICA */}
                 <Card className="border-l-4 border-l-blue-600">
                     <div className="px-6 py-4 bg-[#151e32] border-b border-slate-700 flex justify-between items-center">
                         <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
