@@ -6,29 +6,71 @@ import {
   CheckCircle2, AlertTriangle, ArrowRight, ShieldAlert, 
   Activity, DollarSign, Briefcase, LineChart, Lock, 
   FileText, Copy, Scale, Info, RefreshCw, Settings,
-  UserPlus
+  UserPlus, Percent
 } from 'lucide-react';
 
-// --- CENTRAL DE CONTROLE DE ÍNDICES ---
+// --- CENTRAL DE CONTROLE DE ÍNDICES (ATUALIZADA SAFRA 2026) ---
 const CONFIG = {
-  VERSION: "3.0.0 (Master AI)",
-  LAST_UPDATE: "02/02/2026",
-  POOL_MARKET_AVG: 14.80,
-  INDICES: {
-    "Bradesco Saúde": { vcmh: 16.5, pool: 17.5 },
-    "SulAmérica": { vcmh: 15.8, pool: 16.8 },
-    "Amil": { vcmh: 14.2, pool: 15.5 },
-    "Unimed (Nacional)": { vcmh: 13.5, pool: 14.8 },
-    "NotreDame Intermédica": { vcmh: 12.8, pool: 13.5 },
-    "Porto Seguro": { vcmh: 14.9, pool: 15.9 },
-    "Sompo Saúde": { vcmh: 15.2, pool: 16.2 },
-    "Omint": { vcmh: 17.1, pool: 18.0 },
-    "Prevent Senior": { vcmh: 11.5, pool: 12.5 },
-    "Allianz": { vcmh: 15.5, pool: 16.5 },
-    "Seguros Unimed": { vcmh: 14.0, pool: 15.0 },
-    "Média de Mercado": { vcmh: 15.0, pool: 14.8 }
-  } as Record<string, { vcmh: number, pool: number }>
+  VERSION: "5.0.0 (Precision Math)",
+  LAST_UPDATE: "10/02/2026",
+  
+  // Tabela Exata do Cliente (Vigência até Abril/2026)
+  POOL_2026: {
+    "Ameplan": 13.50,
+    "Amil": 15.98,
+    "Ana Costa": 15.13,
+    "Assim Saúde": 15.59,
+    "Blue Med": 19.38,
+    "Bradesco Saúde": 15.11,
+    "Care Plus": 18.81,
+    "NotreDame Intermédica": 15.21,
+    "Golden Cross": 18.81,
+    "Interclínicas": 9.33,
+    "Hapvida": 15.20,
+    "New Leader": 19.99,
+    "Omint": 13.32,
+    "Plamed": 6.76,
+    "Porto Seguro": 15.87,
+    "Samel": 15.26,
+    "Sami": 15.37,
+    "São Cristóvão": 6.91,
+    "São Miguel": 6.75,
+    "Seguros Unimed": 11.92,
+    "Soban": 15.21,
+    "SulAmérica": 15.23,
+    "Unimed (Nacional)": 19.50,
+    "Unimed Campinas": 12.50,
+    "Unimed Guarulhos": 13.50,
+    "Unimed Jundiaí": 15.58,
+    "Unimed Ferj": 15.58,
+    "Unimed Santos": 12.67,
+    "Unimed São José dos Campos": 15.12,
+    "Vera Cruz": 12.40,
+    "Trasmontano": 9.33,
+    "Alice": 12.50,
+    "Média de Mercado": 14.50
+  } as Record<string, number>,
+
+  // VCMH para PME II e Empresarial (Inflação Médica Financeira Estimada)
+  VCMH_INDICES: {
+    "Bradesco Saúde": 16.5,
+    "SulAmérica": 15.8,
+    "Amil": 14.2,
+    "NotreDame Intermédica": 13.8,
+    "Porto Seguro": 14.9,
+    "Seguros Unimed": 14.0,
+    "Omint": 17.1,
+    "Unimed (Nacional)": 13.5,
+    "Golden Cross": 16.0,
+    "Média de Mercado": 15.0
+  } as Record<string, number>
 };
+
+// Unificação da lista para o Select
+const OPERATORS_LIST = [
+  ...Object.keys(CONFIG.POOL_2026).filter(k => k !== "Média de Mercado").sort(),
+  "Outra"
+];
 
 // --- TIPOS ---
 type CompanySize = 'PME_I' | 'PME_II' | 'EMPRESARIAL';
@@ -39,8 +81,8 @@ interface FormData {
   operator: string;
   companySize: CompanySize;
   calculationMix: CalculationMix;
-  breakEvenPoint: string; // Novo: Seleção de BEP (70, 72, 75)
-  averageAge: string;     // Novo: Média de Idade
+  breakEvenPoint: string;
+  averageAge: string;
   claimsRatio: string;
   vcmh: string; 
   currentInvoice: string;
@@ -51,8 +93,9 @@ interface AnalysisResult {
   technicalReadjustment: number;
   proposedReadjustment: number;
   savingPotential: number;
-  isNegative: boolean; // Indica se o reajuste técnico é negativo (desconto)
-  agingFactor: number; // Impacto da idade calculado
+  isNegative: boolean;
+  agingFactor: number;
+  projectedClaimsRatio: number; // Nova métrica: Sinistralidade Projetada
   financialImpact: {
     current: number;
     proposedValue: number;
@@ -119,10 +162,10 @@ export default function App() {
     operator: '',
     companySize: 'PME_II',
     calculationMix: 'MIX_50_50',
-    breakEvenPoint: '75', // Padrão de mercado
-    averageAge: '',       // Opcional
+    breakEvenPoint: '75',
+    averageAge: '',
     claimsRatio: '',
-    vcmh: CONFIG.INDICES["Média de Mercado"].vcmh.toFixed(2),
+    vcmh: '15.00',
     currentInvoice: '',
     proposedReadjustment: ''
   });
@@ -130,28 +173,39 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
-  // --- MOTOR DE INTELIGÊNCIA ---
+  // --- MOTOR DE INTELIGÊNCIA: AUTO-DETECÇÃO DE ÍNDICE ---
   useEffect(() => {
     let indexValue = 15.0;
-    const opData = CONFIG.INDICES[formData.operator] || CONFIG.INDICES["Média de Mercado"];
-
+    
+    // 1. Cenário PME I (Pool 2026)
     if (formData.companySize === 'PME_I') {
-        indexValue = opData.pool;
-    } else {
-        indexValue = opData.vcmh;
+        if (formData.operator && CONFIG.POOL_2026[formData.operator]) {
+            indexValue = CONFIG.POOL_2026[formData.operator];
+        } else {
+            indexValue = CONFIG.POOL_2026["Média de Mercado"];
+        }
+    } 
+    // 2. Cenário PME II / Empresarial (VCMH)
+    else {
+        if (formData.operator && CONFIG.VCMH_INDICES[formData.operator]) {
+            indexValue = CONFIG.VCMH_INDICES[formData.operator];
+        } else {
+            indexValue = CONFIG.VCMH_INDICES["Média de Mercado"];
+        }
     }
 
     setFormData(prev => ({ ...prev, vcmh: indexValue.toFixed(2) }));
 
+    // Reset de Mix conforme porte
     if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'POOL_100' }));
     if (formData.companySize === 'EMPRESARIAL') setFormData(prev => ({ ...prev, calculationMix: 'TECH_100' }));
-    
     if (formData.companySize === 'PME_II' && formData.calculationMix === 'POOL_100') {
         setFormData(prev => ({ ...prev, calculationMix: 'MIX_50_50' }));
     }
-  }, [formData.operator, formData.companySize]); // Dependências corrigidas
 
-  // --- GERADOR DE DEFESA ESTRUTURADA ---
+  }, [formData.operator, formData.companySize]); 
+
+  // --- GERADOR DE DEFESA TÉCNICA E JURÍDICA ---
   const generateDefenseText = (
       techRate: number, 
       proposedRate: number, 
@@ -159,49 +213,54 @@ export default function App() {
       target: number, 
       operator: string, 
       isNegative: boolean,
-      ageFactor: number
+      projectedClaims: number
   ) => {
     const isPME1 = formData.companySize === 'PME_I';
     const currentYear = new Date().getFullYear();
 
     let text = `À\n${operator || 'Operadora de Saúde'}\nDepartamento de Relacionamento Empresarial / Atuarial\n\n`;
-    text += `Ref: Análise Técnica e Pleito de Reajuste - Safra ${currentYear}\n\n`;
+    text += `Ref: Defesa Técnica de Reajuste - Safra ${currentYear} (Aniversário: ${formData.anniversaryMonth})\n\n`;
     text += `Prezados,\n\n`;
-    text += `Em resposta à proposta de reajuste de ${proposedRate.toFixed(2)}%, apresentamos nossa auditoria técnica fundamentada:\n\n`;
+    text += `Em resposta à proposta de reajuste de ${proposedRate.toFixed(2)}%, apresentamos nossa auditoria atuarial fundamentada nos princípios de equilíbrio econômico-financeiro e nas normativas vigentes.\n\n`;
     
     if (isPME1) {
-         text += `1. ANÁLISE DE POOL (RN 565 ANS)\n`;
-         text += `O contrato pertence ao agrupamento PME (Pool). A média atuarial de mercado para carteiras semelhantes é de aprox. ${CONFIG.POOL_MARKET_AVG}%. O índice proposto destoa da realidade do segmento.\n\n`;
+         text += `1. AGENDAMENTO DE POOL (RN 565 ANS)\n`;
+         text += `O contrato enquadra-se no agrupamento PME (até 29 vidas), regido pela Resolução Normativa 565 da ANS. O reajuste deve refletir obrigatoriamente o índice único do Pool da operadora, vedada a aplicação de sinistralidade individual.\n`;
+         text += `Para esta safra, a tabela de mercado indica um índice de ${formData.vcmh}% para contratos similares na ${operator}. `;
+         
+         if (proposedRate > parseFloat(formData.vcmh)) {
+             text += `O índice proposto de ${proposedRate.toFixed(2)}% apresenta desvio injustificado em relação ao índice de referência do Pool (${formData.vcmh}%).\n\n`;
+         } else {
+             text += `Embora o índice acompanhe o Pool, solicitamos a revisão comercial visando a manutenção da carteira.\n\n`;
+         }
     } else {
-         text += `1. SINISTRALIDADE VS. BREAK-EVEN (${target}%)\n`;
-         text += `A apólice registrou sinistralidade de ${claims.toFixed(2)}%. `;
+         text += `1. EQUILÍBRIO TÉCNICO (BREAK-EVEN ${target}%)\n`;
+         text += `A apólice registrou sinistralidade acumulada de ${claims.toFixed(2)}%. `;
          
          if (claims < target) {
-             text += `Este resultado é EXCELENTE e está ${ (target - claims).toFixed(2) } pontos percentuais ABAIXO da meta de equilíbrio (${target}%). `;
-             text += `O contrato é superavitário, contribuindo positivamente para o resultado da operadora. Tecnicamente, isso ensejaria um reajuste NEGATIVO (Desconto).\n\n`;
+             text += `Este resultado está ABAIXO da meta de equilíbrio (${target}%), evidenciando superávit técnico. O contrato gerou margem positiva para a operadora, tornando tecnicamente indevida a aplicação de reajuste por sinistralidade.\n\n`;
          } else {
-             text += `O desvio apresentado requer correção, porém a proposta de ${proposedRate.toFixed(2)}% excede a necessidade técnica de recomposição.\n\n`;
+             text += `O desvio de sinistralidade requer correção. No entanto, nossa modelagem atuarial demonstra que o reajuste de ${proposedRate.toFixed(2)}% excede o necessário para restabelecer o equilíbrio.\n`;
+             text += `Com o reajuste técnico de ${techRate.toFixed(2)}%, a sinistralidade projetada retornará para o patamar de meta (${target}%), garantindo a sustentabilidade sem onerosidade excessiva.\n\n`;
          }
          
          if (formData.averageAge) {
-             text += `2. PERFIL DEMOGRÁFICO (Média: ${formData.averageAge} anos)\n`;
-             if (ageFactor > 0) text += `Consideramos o fator de envelhecimento natural na projeção, porém o impacto já está diluído no VCMH.\n\n`;
-             else text += `A carteira possui perfil jovem, o que atuarialmente projeta menor risco de agravamento de custos no curto prazo.\n\n`;
+             text += `2. PERFIL ETÁRIO E MUTUALISMO\n`;
+             text += `Consideramos a média de idade (${formData.averageAge} anos) no cálculo de projeção de risco, diluindo o impacto de utilização atípica no princípio do mutualismo.\n\n`;
          }
 
-         text += `3. COMPONENTE FINANCEIRO\n`;
-         text += `VCMH de referência utilizado: ${formData.vcmh}%.\n\n`;
+         text += `3. INDEXADOR FINANCEIRO (VCMH)\n`;
+         text += `VCMH de referência aplicado: ${formData.vcmh}%.\n\n`;
     }
 
     text += `CONCLUSÃO E PLEITO:\n`;
     
     if (isNegative) {
-        text += `Matematicamente, o equilíbrio do contrato aponta para uma REDUÇÃO de ${Math.abs(techRate).toFixed(2)}% ou, no mínimo, a MANUTENÇÃO das taxas atuais (0%). `;
-        text += `Qualquer aplicação de índice positivo será considerada injustificável tecnicamente.\n\n`;
-        text += `PLEITO: ISENÇÃO TOTAL DE REAJUSTE (0%).\n\n`;
+        text += `A análise técnica comprova a ausência de necessidade de recomposição. `;
+        text += `Solicitamos a ISENÇÃO TOTAL DO REAJUSTE (0%) ou a aplicação exclusiva do VCMH, desconsiderando agravos técnicos.\n\n`;
     } else {
-        text += `O ponto de equilíbrio atuarial encontra-se em ${techRate.toFixed(2)}%. `;
-        text += `Solicitamos a revisão imediata para este patamar.\n\n`;
+        text += `O ponto de equilíbrio atuarial estrito é atingido com o índice de ${techRate.toFixed(2)}%. `;
+        text += `Solicitamos a revisão da proposta para este patamar, garantindo a continuidade da apólice.\n\n`;
     }
     
     text += `Atenciosamente,\n\n[Assinatura do Responsável]`;
@@ -218,62 +277,76 @@ export default function App() {
       const baseIndex = parseFloat(formData.vcmh) || 0;
       const invoice = parseFloat(formData.currentInvoice) || 0;
       const proposed = parseFloat(formData.proposedReadjustment) || 0;
-      const targetLossRatio = parseFloat(formData.breakEvenPoint); // Input do usuário
+      const targetLossRatio = parseFloat(formData.breakEvenPoint);
       const avgAge = parseFloat(formData.averageAge) || 0;
 
-      // 1. CÁLCULO TÉCNICO
-      // Fórmula: ((Sinistro / Meta) - 1) * 100 + VCMH
-      // Se Sinistro < Meta, isso dá negativo. Ex: (60/75 - 1) = -0.2 (-20%)
-      let technicalNeedRaw = (((claims / targetLossRatio) - 1) * 100) + baseIndex;
+      // --- MATEMÁTICA ATUARIAL DE PRECISÃO (FÓRMULA MULTIPLICATIVA) ---
+      // A fórmula linear (VCMH + Tech) erra no longo prazo. 
+      // A fórmula correta projeta o prêmio necessário para cobrir o sinistro inflacionado.
+      // PremioNecessario = (SinistroAtual * (1 + VCMH)) / Meta
+      // Indice = (PremioNecessario / PremioAtual) - 1
       
-      // Lógica de "Desconto Técnico":
-      // Se não for Empresarial (que tem livre negociação total), geralmente não se aplica negativo total,
-      // trava-se no zero ou no VCMH. Mas como você pediu "Matemática Pura", vamos deixar o número real fluir
-      // e tratar visualmente.
+      const vcmhFactor = 1 + (baseIndex / 100);
+      const currentLossRatio = claims / 100;
+      const targetRatio = targetLossRatio / 100;
+
+      // Cálculo do Índice Técnico Puro (Precision Math)
+      let technicalNeedRaw = 0;
+      if (formData.companySize === 'PME_I') {
+         technicalNeedRaw = baseIndex; // Pool é fixo
+      } else {
+         // Fórmula: ((Sinistro * (1+VCMH)) / Meta) - 1
+         // Exemplo: Sinistro 85%, Meta 75%, VCMH 15%
+         // (0.85 * 1.15) / 0.75 = 1.3033 -> Reajuste 30.33% (cobre tudo)
+         const requiredPremiumRatio = (currentLossRatio * vcmhFactor) / targetRatio;
+         technicalNeedRaw = (requiredPremiumRatio - 1) * 100;
+      }
       
       // 2. APLICAÇÃO DO MIX
       let technicalFinal = 0;
       
       switch (formData.calculationMix) {
         case 'POOL_100':
-            technicalFinal = baseIndex; // No PME I, o baseIndex já é o Pool
+            technicalFinal = baseIndex; 
             break;
         case 'TECH_100':
-            technicalFinal = technicalNeedRaw; // Pode ser negativo!
+            technicalFinal = technicalNeedRaw; 
             break;
         case 'MIX_50_50':
-            technicalFinal = (CONFIG.POOL_MARKET_AVG * 0.5) + (technicalNeedRaw * 0.5);
+            technicalFinal = (CONFIG.POOL_2026["Média de Mercado"] * 0.5) + (technicalNeedRaw * 0.5);
             break;
         case 'MIX_70_30':
-            technicalFinal = (CONFIG.POOL_MARKET_AVG * 0.7) + (technicalNeedRaw * 0.3);
+            technicalFinal = (CONFIG.POOL_2026["Média de Mercado"] * 0.7) + (technicalNeedRaw * 0.3);
             break;
       }
 
-      // 3. FATOR DE IDADE (AGING AI)
-      // Se a idade média for alta, projeta custos maiores para o futuro (anos 2 e 3)
+      // 3. FATOR DE IDADE (AGING)
       let agingRiskLoad = 0;
       if (avgAge > 0) {
-          if (avgAge > 55) agingRiskLoad = 0.04; // +4% risco
-          else if (avgAge > 45) agingRiskLoad = 0.02; // +2% risco
-          else if (avgAge < 30) agingRiskLoad = -0.01; // -1% bônus (jovens)
+          if (avgAge > 59) agingRiskLoad = 0.05;
+          else if (avgAge > 49) agingRiskLoad = 0.03;
+          else if (avgAge < 30) agingRiskLoad = -0.01;
       }
       
       const trendFactor = (1 + (baseIndex / 100) + agingRiskLoad);
 
-      // Projeções
       const valProposed = invoice * (1 + (proposed / 100));
-      const valFair = invoice * (1 + (technicalFinal / 100)); // Se negativo, reduz a fatura
+      const valFair = invoice * (1 + (technicalFinal / 100));
       
       const m12 = valFair;
       const m24 = m12 * trendFactor;
       const m36 = m24 * trendFactor;
 
-      // Se technicalFinal < 0, é um desconto/redução
-      const isNegative = technicalFinal < 0;
+      const isNegative = technicalFinal <= 0;
+
+      // PROJEÇÃO REVERSA: Qual será a sinistralidade se aplicarmos o reajuste justo?
+      // Deve bater exatamente na meta (ex: 75%).
+      // SinistroFuturo = (SinistroAtual * VCMH) / (PremioAtual * (1 + Reajuste))
+      const projectedClaims = ((claims * vcmhFactor) / (1 + (technicalFinal/100)));
 
       const defense = generateDefenseText(
           technicalFinal, proposed, claims, targetLossRatio, 
-          formData.operator, isNegative, agingRiskLoad
+          formData.operator, isNegative, projectedClaims
       );
 
       setResult({
@@ -282,6 +355,7 @@ export default function App() {
         savingPotential: parseFloat((proposed - technicalFinal).toFixed(2)),
         isNegative,
         agingFactor: agingRiskLoad * 100,
+        projectedClaimsRatio: parseFloat(projectedClaims.toFixed(2)),
         financialImpact: {
             current: invoice,
             proposedValue: valProposed,
@@ -293,12 +367,12 @@ export default function App() {
             breakEven: targetLossRatio,
             technicalNeed: parseFloat(technicalNeedRaw.toFixed(2)),
             baseIndex: baseIndex,
-            indexType: formData.companySize === 'PME_I' ? 'Índice Pool' : 'VCMH'
+            indexType: formData.companySize === 'PME_I' ? 'Índice Pool 2026' : 'VCMH'
         },
         defenseText: defense
       });
       setLoading(false);
-    }, 1000);
+    }, 800);
   };
 
   return (
@@ -313,7 +387,7 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-lg font-bold leading-none tracking-tight">Atuário<span className="text-emerald-400">Master AI</span></h1>
-              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">Intelligence System 3.0</p>
+              <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">Precision System {CONFIG.VERSION}</p>
             </div>
           </div>
           <div className="hidden md:flex items-center gap-4">
@@ -321,7 +395,7 @@ export default function App() {
                 <span className="text-[10px] uppercase text-slate-400 font-bold flex items-center gap-1">
                     <RefreshCw className="w-3 h-3" /> Base Atualizada
                 </span>
-                <span className="text-xs text-emerald-400 font-mono">{CONFIG.VERSION}</span>
+                <span className="text-xs text-emerald-400 font-mono">SAFRA 2026</span>
              </div>
              <div className="h-6 w-px bg-slate-700"></div>
              <div className="flex items-center gap-2 text-xs text-slate-300">
@@ -348,14 +422,14 @@ export default function App() {
               
               <form onSubmit={handleCalculate} className="p-6 space-y-5">
                 
-                <InputGroup label="Operadora" icon={Building2} helpText="Carrega índices de mercado">
+                <InputGroup label="Operadora" icon={Building2} helpText="Carrega tabela Pool 2026 ou VCMH">
                   <select 
                     className="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 text-sm focus:ring-2 focus:ring-emerald-500 outline-none transition-all"
                     value={formData.operator}
                     onChange={(e) => setFormData({...formData, operator: e.target.value})}
                   >
                     <option value="">Selecione...</option>
-                    {Object.keys(CONFIG.INDICES).filter(k => k !== 'Média de Mercado').map(op => <option key={op} value={op}>{op}</option>)}
+                    {OPERATORS_LIST.map(op => <option key={op} value={op}>{op}</option>)}
                   </select>
                 </InputGroup>
 
@@ -393,7 +467,7 @@ export default function App() {
                         <Badge variant="teal">AI PREDICTIVE</Badge>
                     </h3>
                     
-                    {/* NOVO: SELETOR DE BREAK-EVEN */}
+                    {/* SELETOR DE BREAK-EVEN */}
                     <div className="flex gap-2 mb-2">
                         {[65, 70, 72, 75].map(bp => (
                             <button
@@ -428,7 +502,7 @@ export default function App() {
                         </InputGroup>
                     </div>
 
-                    {/* NOVO: MÉDIA DE IDADE */}
+                    {/* MÉDIA DE IDADE */}
                     <InputGroup label="Média de Idade (Anos)" icon={UserPlus} helpText="Afeta projeção futura (Aging Factor)">
                         <input 
                             type="number" 
@@ -514,7 +588,7 @@ export default function App() {
                                     {result.isNegative ? 'Desconto Técnico' : 'Reajuste Técnico'}
                                 </h3>
                                 <p className="text-[10px] text-slate-500">
-                                    Baseado em BEP {formData.breakEvenPoint}%
+                                    Baseado em {formData.companySize === 'PME_I' ? `Tabela Pool (${formData.operator})` : `BEP ${formData.breakEvenPoint}%`}
                                 </p>
                             </div>
                             <Badge variant={result.isNegative ? 'blue' : 'green'}>{result.isNegative ? 'Redução' : 'Justo'}</Badge>
@@ -538,20 +612,19 @@ export default function App() {
                     </Card>
                 </div>
 
-                {/* 2. PROJEÇÃO FINANCEIRA COM AGING FACTOR */}
+                {/* 2. PROJEÇÃO FINANCEIRA COM SINISTRALIDADE PROJETADA */}
                 <Card className="overflow-hidden">
                     <div className="bg-slate-900 px-6 py-3 border-b border-slate-800 flex justify-between items-center">
                         <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
                             <LineChart className="w-4 h-4 text-emerald-400" />
-                            Projeção Preditiva (36 Meses)
+                            Projeção Preditiva
                         </h3>
-                        <div className="flex items-center gap-2">
-                             {result.agingFactor !== 0 && (
-                                 <Badge variant={result.agingFactor > 0 ? 'red' : 'green'}>
-                                     Aging Risk: {result.agingFactor > 0 ? '+' : ''}{result.agingFactor.toFixed(1)}%
-                                 </Badge>
-                             )}
-                        </div>
+                        {formData.companySize !== 'PME_I' && (
+                             <div className="flex items-center gap-2 text-[10px] text-emerald-400 font-mono border border-emerald-800 px-2 py-1 rounded">
+                                 <Percent className="w-3 h-3" />
+                                 Sinistralidade Futura (Est.): {result.projectedClaimsRatio}%
+                             </div>
+                        )}
                     </div>
                     <div className="p-0 overflow-x-auto">
                         <table className="w-full text-sm text-left">
@@ -611,7 +684,7 @@ export default function App() {
         <div className="mt-16 border-t border-slate-200 pt-10 pb-20">
             <h3 className="text-center text-lg font-bold text-slate-800 mb-8 flex items-center justify-center gap-2">
                 <Info className="w-5 h-5 text-emerald-500" />
-                Entenda o Cálculo (Modo Simplificado)
+                Entenda o Cálculo (Precision Math)
             </h3>
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -619,7 +692,7 @@ export default function App() {
                     <div className="absolute -top-3 left-6 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded">BREAK-EVEN</div>
                     <h4 className="font-bold text-slate-700 mb-2">Ponto de Equilíbrio</h4>
                     <p className="text-sm text-slate-500 leading-relaxed">
-                        É a meta definida no contrato (70%, 72% ou 75%). Se a sinistralidade ficar abaixo desse número, o contrato deu lucro. Se ficar acima, deu prejuízo e gera reajuste técnico. A escolha correta deste parâmetro é vital para a defesa.
+                        É a meta definida no contrato (70%, 72% ou 75%). O sistema calcula exatamente quanto o prêmio precisa subir para que a sinistralidade futura retorne a este percentual, já considerando a inflação médica sobre o sinistro.
                     </p>
                 </div>
 
@@ -627,7 +700,7 @@ export default function App() {
                     <div className="absolute -top-3 left-6 bg-slate-900 text-white text-[10px] font-bold px-2 py-1 rounded">AGING FACTOR</div>
                     <h4 className="font-bold text-slate-700 mb-2">Envelhecimento</h4>
                     <p className="text-sm text-slate-500 leading-relaxed">
-                        O sistema usa a Média de Idade para prever o risco futuro. Carteiras mais velhas tendem a ter custos crescentes mais rápidos que a inflação médica comum, exigindo provisões maiores nas projeções de 24 e 36 meses.
+                        O sistema usa a Média de Idade para prever o risco futuro. Carteiras mais velhas tendem a ter custos crescentes mais rápidos que a inflação médica comum.
                     </p>
                 </div>
 
@@ -635,7 +708,7 @@ export default function App() {
                     <div className="absolute -top-3 left-6 bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded">DEFESA INTELIGENTE</div>
                     <h4 className="font-bold text-slate-700 mb-2">Reajuste Negativo</h4>
                     <p className="text-sm text-slate-500 leading-relaxed">
-                        Se a sinistralidade estiver muito baixa (abaixo do Break-even), o sistema calcula matematicamente que deveria haver um desconto. Usamos esse dado para pleitear, no mínimo, a isenção do reajuste (0%).
+                        Se a sinistralidade estiver muito baixa (abaixo do Break-even), o sistema calcula matematicamente que deveria haver um desconto. Usamos esse dado para pleitear a isenção do reajuste (0%).
                     </p>
                 </div>
             </div>
