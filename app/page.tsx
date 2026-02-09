@@ -11,7 +11,7 @@ import {
 
 // --- CONFIGURAÇÃO E DADOS (SAFRA 2026 - AUDITADO) ---
 const CONFIG = {
-  VERSION: "15.0.0 (Precision PME II)",
+  VERSION: "16.0.0 (Simplified Method)",
   LAST_UPDATE: "16/02/2026",
   
   POOL_2026: {
@@ -42,7 +42,8 @@ const OPERATORS_LIST = [
 
 // --- TIPAGEM ---
 type CompanySize = 'PME_I' | 'PME_II' | 'EMPRESARIAL';
-type CalculationMix = 'POOL_100' | 'MIX_50_50' | 'MIX_70_30' | 'TECH_100';
+// MUDANÇA: Simplificamos o Mix para apenas duas lógicas principais
+type CalculationMix = 'WEIGHTED' | 'INDIVIDUAL'; 
 type NegotiationStatus = 'EASY' | 'MEDIUM' | 'HARD' | 'CRITICAL';
 
 interface FormData {
@@ -52,12 +53,13 @@ interface FormData {
   calculationMix: CalculationMix;
   breakEvenPoint: string;
   averageAge: string;
+  
   // Sinistralidade Composta (PME II)
   claimsPool: string;
   weightPool: string;
   claimsIndividual: string;
   weightIndividual: string;
-  // Sinistralidade Final (Calculada ou Input Simples)
+  // Sinistralidade Final
   claimsRatio: string;
   
   vcmh: string; 
@@ -87,7 +89,7 @@ interface AnalysisResult {
     projections: { m12: number; m24: number; m36: number; }
   };
   defenseText: string;
-  compositeClaims?: { // Para exibir na didática se for PME II
+  compositeClaims?: { 
       pool: number;
       ind: number;
       final: number;
@@ -141,15 +143,15 @@ export default function App() {
     anniversaryMonth: new Date().toLocaleString('pt-BR', { month: 'long' }),
     operator: '',
     companySize: 'PME_II',
-    calculationMix: 'MIX_50_50',
+    calculationMix: 'WEIGHTED', // Default para PME II
     breakEvenPoint: '75',
     averageAge: '',
     
     // PME II Specifics
     claimsPool: '',
-    weightPool: '40', // Default weight
+    weightPool: '40', 
     claimsIndividual: '',
-    weightIndividual: '60', // Default weight
+    weightIndividual: '60', 
     claimsRatio: '',
 
     vcmh: '15.00',
@@ -192,18 +194,17 @@ export default function App() {
         averageAge: ''
     }));
 
-    if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'POOL_100' }));
-    if (formData.companySize === 'EMPRESARIAL') setFormData(prev => ({ ...prev, calculationMix: 'TECH_100' }));
-    if (formData.companySize === 'PME_II' && formData.calculationMix === 'POOL_100') {
-        setFormData(prev => ({ ...prev, calculationMix: 'MIX_50_50' }));
-    }
+    // Reset Defaults com base no porte
+    if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'INDIVIDUAL' })); // PME I não tem mix ponderado do usuário
+    if (formData.companySize === 'EMPRESARIAL') setFormData(prev => ({ ...prev, calculationMix: 'INDIVIDUAL' }));
+    if (formData.companySize === 'PME_II') setFormData(prev => ({ ...prev, calculationMix: 'WEIGHTED' })); // PME II começa "Por Peso"
 
     setResult(null);
-  }, [formData.operator, formData.companySize, formData.calculationMix]);
+  }, [formData.operator, formData.companySize]); // Removi calculationMix do array de dependência para evitar loop infinito no reset
 
-  // --- 2. CÁLCULO DINÂMICO DE SINISTRO PME II ---
+  // --- 2. CÁLCULO DINÂMICO DE SINISTRO PME II (WEIGHTED) ---
   useEffect(() => {
-    if (formData.companySize === 'PME_II') {
+    if (formData.companySize === 'PME_II' && formData.calculationMix === 'WEIGHTED') {
         const pool = parseFloat(formData.claimsPool) || 0;
         const wPool = parseFloat(formData.weightPool) || 0;
         const ind = parseFloat(formData.claimsIndividual) || 0;
@@ -216,7 +217,7 @@ export default function App() {
             setFormData(prev => ({ ...prev, claimsRatio: weightedAverage.toFixed(2) }));
         }
     }
-  }, [formData.claimsPool, formData.weightPool, formData.claimsIndividual, formData.weightIndividual, formData.companySize]);
+  }, [formData.claimsPool, formData.weightPool, formData.claimsIndividual, formData.weightIndividual, formData.companySize, formData.calculationMix]);
 
 
   // --- GERADOR DE DEFESA ---
@@ -241,8 +242,8 @@ export default function App() {
         }
     } else {
         text += `1. PERFORMANCE & EQUILÍBRIO TÉCNICO\n`;
-        if (formData.companySize === 'PME_II' && formData.claimsPool && formData.claimsIndividual) {
-            text += `Considerando a modelagem composta (Pool ${formData.weightPool}% + Individual ${formData.weightIndividual}%), apuramos sinistralidade ponderada de ${claims.toFixed(2)}%.\n`;
+        if (formData.companySize === 'PME_II' && formData.calculationMix === 'WEIGHTED') {
+            text += `Considerando a modelagem composta "Por Peso" (Pool ${formData.weightPool}% + Individual ${formData.weightIndividual}%), apuramos sinistralidade ponderada de ${claims.toFixed(2)}%.\n`;
         } else {
             text += `Apólice com sinistralidade acumulada de ${claims.toFixed(2)}% (Break-even: ${target}%).\n`;
         }
@@ -305,15 +306,10 @@ export default function App() {
          }
       }
       
-      let technicalCalculated = 0;
-      const poolRef = CONFIG.POOL_2026["Média de Mercado"];
-
-      switch (formData.calculationMix) {
-        case 'POOL_100': technicalCalculated = technicalNeedRaw; break;
-        case 'TECH_100': technicalCalculated = technicalNeedRaw; break;
-        case 'MIX_50_50': technicalCalculated = (poolRef * 0.5) + (technicalNeedRaw * 0.5); break;
-        case 'MIX_70_30': technicalCalculated = (poolRef * 0.7) + (technicalNeedRaw * 0.3); break;
-      }
+      // CÁLCULO FINAL (Agora simplificado: ou é o que calculamos acima, ou o PME I)
+      // Se for "WEIGHTED", o claimsRatio já foi ajustado pelo useEffect para ser a média ponderada.
+      // A fórmula technicalNeedRaw usa esse claimsRatio ajustado.
+      let technicalCalculated = technicalNeedRaw;
 
       const technicalFinal = manualTechInput !== null ? manualTechInput : technicalCalculated;
       const isManualOverride = manualTechInput !== null;
@@ -369,7 +365,7 @@ export default function App() {
             }
         },
         defenseText: defense,
-        compositeClaims: formData.companySize === 'PME_II' ? {
+        compositeClaims: (formData.companySize === 'PME_II' && formData.calculationMix === 'WEIGHTED') ? {
             pool: parseFloat(formData.claimsPool) || 0,
             ind: parseFloat(formData.claimsIndividual) || 0,
             final: claims
@@ -395,7 +391,7 @@ export default function App() {
                   </h1>
               </div>
               <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] mt-1 pl-12 uppercase">
-                Intelligence System v15.0
+                Intelligence System v16.0
               </p>
           </div>
           
@@ -457,9 +453,8 @@ export default function App() {
                                 value={formData.calculationMix}
                                 onChange={(e) => setFormData({...formData, calculationMix: e.target.value as CalculationMix})}
                             >
-                                <option value="MIX_50_50">Mix 50/50</option>
-                                <option value="MIX_70_30">Mix 70/30</option>
-                                <option value="TECH_100">Técnico Puro</option>
+                                <option value="WEIGHTED">Por Peso</option>
+                                <option value="INDIVIDUAL">Individual</option>
                             </select>
                         </InputGroup>
                     )}
@@ -469,11 +464,11 @@ export default function App() {
                     <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#a3e635] to-emerald-600"></div>
                     
                     {/* INPUTS DE SINISTRO */}
-                    {formData.companySize === 'PME_II' ? (
-                        <div className="space-y-4">
+                    {formData.companySize === 'PME_II' && formData.calculationMix === 'WEIGHTED' ? (
+                        <div className="space-y-4 animate-in fade-in slide-in-from-left-4 duration-300">
                              <div className="flex items-center gap-2 mb-2">
                                 <Split className="w-4 h-4 text-[#a3e635]" />
-                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Composição de Sinistro (PME II)</span>
+                                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cálculo Por Peso (Ponderado)</span>
                              </div>
                              
                              {/* POOL INPUTS */}
@@ -528,7 +523,7 @@ export default function App() {
 
                              {/* RESULTADO COMPOSTO */}
                              <div className="pt-2 border-t border-slate-800 flex justify-between items-center">
-                                 <span className="text-[10px] text-slate-500 uppercase">Projeção Composta</span>
+                                 <span className="text-[10px] text-slate-500 uppercase">Média Ponderada</span>
                                  <span className="text-sm font-mono font-bold text-[#a3e635]">
                                      {formData.claimsRatio ? `${formData.claimsRatio}%` : '--'}
                                  </span>
@@ -536,16 +531,18 @@ export default function App() {
 
                         </div>
                     ) : (
-                        <InputGroup label="Sinistro %" icon={ShieldAlert}>
-                             <input 
-                                type="number" 
-                                disabled={formData.companySize === 'PME_I'} 
-                                className="w-full bg-[#020617] border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono font-bold text-white outline-none focus:border-[#a3e635] disabled:opacity-30 disabled:cursor-not-allowed"
-                                value={formData.claimsRatio}
-                                onChange={(e) => setFormData({...formData, claimsRatio: e.target.value})}
-                                placeholder={formData.companySize === 'PME_I' ? "Pool Fix" : "0.00"}
-                            />
-                        </InputGroup>
+                        <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                             <InputGroup label="Sinistro Individual %" icon={ShieldAlert}>
+                                <input 
+                                    type="number" 
+                                    disabled={formData.companySize === 'PME_I'} 
+                                    className="w-full bg-[#020617] border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono font-bold text-white outline-none focus:border-[#a3e635] disabled:opacity-30 disabled:cursor-not-allowed"
+                                    value={formData.claimsRatio}
+                                    onChange={(e) => setFormData({...formData, claimsRatio: e.target.value})}
+                                    placeholder={formData.companySize === 'PME_I' ? "Pool Fix (N/A)" : "0.00"}
+                                />
+                            </InputGroup>
+                        </div>
                     )}
 
                     <div className="pt-4 border-t border-slate-800 space-y-4">
@@ -759,7 +756,7 @@ export default function App() {
                     </div>
                 </Card>
 
-                {/* 4. BLOCO INTELIGÊNCIA ARTIFICIAL & FUTURO (RECUPERADO E DESTACADO) */}
+                {/* 4. BLOCO INTELIGÊNCIA ARTIFICIAL & FUTURO */}
                 <Card className="border border-purple-500/50 overflow-hidden relative shadow-[0_0_20px_rgba(168,85,247,0.15)]">
                      <div className="absolute inset-0 bg-purple-950/20 backdrop-blur-sm z-0"></div>
                      <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-0">
@@ -804,7 +801,7 @@ export default function App() {
                      </div>
                 </Card>
 
-                {/* 5. METODOLOGIA DIDÁTICA (RECUPERADO) */}
+                {/* 5. METODOLOGIA DIDÁTICA */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card className="p-5 border-t-2 border-t-slate-600 bg-[#0f172a]">
                         <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center mb-3">
