@@ -6,15 +6,15 @@ import {
   CheckCircle2, AlertTriangle, ArrowRight, ShieldAlert, 
   Activity, DollarSign, Briefcase, LineChart, Lock, 
   FileText, Copy, Scale, Info, RefreshCw, Settings,
-  UserPlus, Percent, Database, Edit3, Shield, BrainCircuit, Lightbulb
+  UserPlus, Percent, Database, Edit3, Shield, Zap, Thermometer, BarChart3, Clock
 } from 'lucide-react';
 
-// --- CONFIGURAÇÃO E DADOS (SAFRA 2026) ---
+// --- CONFIGURAÇÃO E DADOS (SAFRA 2026 - AUDITADO) ---
 const CONFIG = {
-  VERSION: "10.0.0 (Safety Audit)",
-  LAST_UPDATE: "14/02/2026",
+  VERSION: "12.0.0 (Financial Storytelling)",
+  LAST_UPDATE: "15/02/2026",
   
-  // Tabela Exata do Pool (RN 565)
+  // TABELA OFICIAL POOL PME I (RN 565)
   POOL_2026: {
     "Ameplan": 13.50, "Amil": 15.98, "Ana Costa": 15.13, "Assim Saúde": 15.59,
     "Blue Med": 19.38, "Bradesco Saúde": 15.11, "Care Plus": 18.81,
@@ -28,7 +28,7 @@ const CONFIG = {
     "Alice": 12.50, "Média de Mercado": 14.50
   } as Record<string, number>,
 
-  // VCMH Financeiro (PME II / Empresarial)
+  // VCMH FINANCEIRO (PME II / EMPRESARIAL REFERÊNCIA)
   VCMH_INDICES: {
     "Bradesco Saúde": 16.5, "SulAmérica": 15.8, "Amil": 14.2,
     "NotreDame Intermédica": 13.8, "Porto Seguro": 14.9, "Seguros Unimed": 14.0,
@@ -45,6 +45,7 @@ const OPERATORS_LIST = [
 // --- TIPAGEM ---
 type CompanySize = 'PME_I' | 'PME_II' | 'EMPRESARIAL';
 type CalculationMix = 'POOL_100' | 'MIX_50_50' | 'MIX_70_30' | 'TECH_100';
+type NegotiationStatus = 'EASY' | 'MEDIUM' | 'HARD' | 'CRITICAL';
 
 interface FormData {
   anniversaryMonth: string;
@@ -72,6 +73,7 @@ interface AnalysisResult {
   usedVcmh: number;
   agingFactor: number;
   nextYearProjection: number;
+  negotiationStatus: NegotiationStatus;
   financialImpact: {
     current: number;
     proposedValue: number;
@@ -86,34 +88,34 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-// --- COMPONENTES VISUAIS DARK ---
+// --- DESIGN SYSTEM: NEON AURORA ---
 const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
-  <div className={`bg-[#1e293b] border border-slate-700/50 rounded-xl shadow-xl overflow-hidden ${className}`}>
+  <div className={`bg-[#0f172a] border border-slate-800/60 rounded-2xl shadow-2xl relative overflow-hidden backdrop-blur-xl ${className}`}>
     {children}
   </div>
 );
 
-const Badge = ({ children, variant = 'gray' }: { children: React.ReactNode, variant?: 'gray' | 'green' | 'red' | 'blue' | 'purple' | 'orange' | 'lime' }) => {
+const Badge = ({ children, variant = 'gray' }: { children: React.ReactNode, variant?: 'gray' | 'green' | 'red' | 'blue' | 'purple' | 'orange' | 'neon' }) => {
   const styles = {
-    gray: "bg-slate-700 text-slate-300 border-slate-600",
-    blue: "bg-blue-900/50 text-blue-200 border-blue-800",
-    green: "bg-emerald-900/50 text-emerald-300 border-emerald-800",
-    red: "bg-red-900/50 text-red-300 border-red-800",
-    purple: "bg-purple-900/50 text-purple-300 border-purple-800",
-    orange: "bg-orange-900/50 text-orange-300 border-orange-800",
-    lime: "bg-[#a3e635]/20 text-[#a3e635] border-[#a3e635]/50",
+    gray: "bg-slate-800 text-slate-400 border-slate-700",
+    blue: "bg-blue-950/40 text-blue-400 border-blue-800/50",
+    green: "bg-emerald-950/40 text-emerald-400 border-emerald-800/50",
+    red: "bg-red-950/40 text-red-400 border-red-800/50",
+    purple: "bg-purple-950/40 text-purple-400 border-purple-800/50",
+    orange: "bg-orange-950/40 text-orange-400 border-orange-800/50",
+    neon: "bg-[#a3e635]/10 text-[#a3e635] border-[#a3e635]/30 shadow-[0_0_10px_rgba(163,230,53,0.1)]",
   };
   return (
-    <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${styles[variant]} uppercase tracking-wider`}>
+    <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold border ${styles[variant]} uppercase tracking-wider flex items-center gap-1`}>
       {children}
     </span>
   );
 };
 
 const InputGroup = ({ label, icon: Icon, children, highlight = false }: { label: string, icon: any, children: React.ReactNode, highlight?: boolean }) => (
-  <div className="space-y-1.5">
-    <label className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${highlight ? 'text-[#a3e635]' : 'text-slate-400'}`}>
-      <Icon className={`w-3.5 h-3.5 ${highlight ? 'text-[#a3e635]' : 'text-slate-500'}`} />
+  <div className="space-y-2 group">
+    <label className={`text-[10px] font-bold uppercase tracking-[0.15em] flex items-center gap-2 transition-colors duration-300 ${highlight ? 'text-[#a3e635]' : 'text-slate-500 group-hover:text-slate-300'}`}>
+      <Icon className={`w-3.5 h-3.5 ${highlight ? 'text-[#a3e635]' : 'text-slate-600 group-hover:text-slate-400'}`} />
       {label}
     </label>
     <div className="relative">
@@ -143,13 +145,13 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
-  // --- 1. RESET INTELIGENTE & AUTO-DETECT ---
-  // Atualiza o índice (VCMH) baseado na seleção e limpa o resultado anterior
+  // --- 1. INTELLIGENT RESET ---
   useEffect(() => {
     let indexValue = 15.0;
     
-    // Lógica de Detecção de Índice
-    if (formData.companySize === 'PME_I') {
+    if (formData.companySize === 'EMPRESARIAL') {
+        indexValue = 0; // VCMH 0 para Empresarial
+    } else if (formData.companySize === 'PME_I') {
         indexValue = formData.operator && CONFIG.POOL_2026[formData.operator] 
             ? CONFIG.POOL_2026[formData.operator] 
             : CONFIG.POOL_2026["Média de Mercado"];
@@ -159,50 +161,27 @@ export default function App() {
             : CONFIG.VCMH_INDICES["Média de Mercado"];
     }
 
-    // Atualiza VCMH apenas (os campos são limpos nos Handlers de Change abaixo)
-    setFormData(prev => ({ ...prev, vcmh: indexValue.toFixed(2) }));
-    
-    // Auto-Set Mix
+    setFormData(prev => ({
+        ...prev,
+        vcmh: indexValue === 0 ? '' : indexValue.toFixed(2), 
+        // SAFETY RESET
+        claimsRatio: '',
+        currentInvoice: '',
+        proposedReadjustment: '',
+        manualTechnical: '',
+        manualVcmh: '',
+        averageAge: ''
+    }));
+
     if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'POOL_100' }));
     if (formData.companySize === 'EMPRESARIAL') setFormData(prev => ({ ...prev, calculationMix: 'TECH_100' }));
     if (formData.companySize === 'PME_II' && formData.calculationMix === 'POOL_100') {
         setFormData(prev => ({ ...prev, calculationMix: 'MIX_50_50' }));
     }
 
-    // Limpa o resultado da tela se mudar parâmetros chave
-    setResult(null); 
+    setResult(null);
 
-  }, [formData.operator, formData.companySize]);
-
-
-  // --- HANDLERS COM RESET AUTOMÁTICO ---
-  const handleOperatorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      setFormData(prev => ({
-          ...prev,
-          operator: e.target.value,
-          // RESET DE SEGURANÇA
-          claimsRatio: '',
-          currentInvoice: '',
-          proposedReadjustment: '',
-          manualTechnical: '',
-          manualVcmh: '',
-          averageAge: ''
-      }));
-  };
-
-  const handleSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      setFormData(prev => ({
-          ...prev,
-          companySize: e.target.value as CompanySize,
-          // RESET DE SEGURANÇA
-          claimsRatio: '',
-          currentInvoice: '',
-          proposedReadjustment: '',
-          manualTechnical: '',
-          manualVcmh: '',
-          averageAge: ''
-      }));
-  };
+  }, [formData.operator, formData.companySize, formData.calculationMix]);
 
 
   // --- GERADOR DE DEFESA ---
@@ -213,41 +192,46 @@ export default function App() {
       usedVcmh: number, isVcmhManual: boolean
   ) => {
     const currentYear = new Date().getFullYear();
-    let text = `À\n${operator || 'Operadora'}\nRef: Negociação de Reajuste Cedo Seguros - Safra ${currentYear}\n\n`;
-    text += `Prezados,\n\nRecebemos a proposta de reajuste de ${proposedRate.toFixed(2)}%. Como consultoria especializada na gestão de risco deste contrato, apresentamos nossa posição técnica:\n\n`;
+    let text = `À\n${operator || 'Operadora'}\nRef: Gestão Estratégica Cedo Seguros - Safra ${currentYear}\n\n`;
+    text += `Prezados,\n\nAnalisamos a proposta de reajuste de ${proposedRate.toFixed(2)}%. Como consultoria especializada na gestão de risco deste contrato, apresentamos nossa posição técnica:\n\n`;
     
     if (formData.companySize === 'PME_I') {
-        text += `1. ANÁLISE DE POOL (RN 565 ANS)\n`;
-        text += `Para contratos PME (até 29 vidas), o índice deve seguir estritamente o agrupamento. O índice apurado para esta carteira na operadora é de ${usedVcmh.toFixed(2)}%. `;
-        if (proposedRate > usedVcmh) text += `A proposta apresenta desvio injustificado do índice oficial.\n\n`;
-        else text += `Ratificamos o índice de Pool, mas solicitamos flexibilização comercial para retenção do cliente.\n\n`;
+        text += `1. REGRA DE POOL (RN 565 ANS)\n`;
+        text += `O contrato enquadra-se no agrupamento PME (até 29 vidas). O índice oficial apurado para esta carteira é de ${usedVcmh.toFixed(2)}% (Tabela Safra 2026). `;
+        
+        if (proposedRate > usedVcmh + 0.01) { 
+             text += `A proposta de ${proposedRate.toFixed(2)}% diverge do índice oficial do Pool, devendo ser retificada imediatamente.\n\n`;
+        } else {
+             text += `Embora o índice siga a tabela, solicitamos a flexibilização comercial para manutenção do cliente.\n\n`;
+        }
     } else {
-        text += `1. SINISTRALIDADE VS. EQUILÍBRIO TÉCNICO\n`;
-        text += `Apólice com sinistralidade de ${claims.toFixed(2)}% (Meta: ${target}%).\n`;
+        text += `1. PERFORMANCE & EQUILÍBRIO TÉCNICO\n`;
+        text += `Apólice com sinistralidade acumulada de ${claims.toFixed(2)}% (Break-even: ${target}%).\n`;
         
         if (isTechnicalHigher) {
-             text += `Nossa auditoria aponta que o reajuste técnico estrito seria de ${techRate.toFixed(2)}%. Reconhecemos que a proposta de ${proposedRate.toFixed(2)}% já contempla um deságio comercial.\n`;
-             text += `Contudo, para garantir a renovação e evitar a busca por mercado, solicitamos a manutenção deste patamar ou uma concessão adicional de relacionamento.\n\n`;
+             text += `Nossa auditoria aponta que a necessidade técnica estrita seria de ${techRate.toFixed(2)}%. Reconhecemos o deságio comercial aplicado na proposta (${proposedRate.toFixed(2)}%).\n`;
+             text += `Contudo, visando a sustentabilidade financeira da empresa cliente, solicitamos a manutenção deste patamar ou concessão adicional de relacionamento.\n\n`;
         } else {
-             text += `O cálculo atuarial demonstra que o reajuste necessário para equilíbrio é de APENAS ${techRate.toFixed(2)}%, inferior aos ${proposedRate.toFixed(2)}% solicitados.\n`;
-             text += `Não há justificativa técnica para aplicação de índice superior ao equilíbrio contratual.\n\n`;
+             text += `O cálculo atuarial demonstra que o reajuste necessário para equilíbrio é de APENAS ${techRate.toFixed(2)}%, consideravelmente inferior aos ${proposedRate.toFixed(2)}% solicitados.\n`;
+             text += `Não há fundamentação técnica para a aplicação de índice superior ao equilíbrio contratual.\n\n`;
         }
         
-        text += `2. INDEXADOR (VCMH)\n`;
-        if (isVcmhManual) text += `Considerado VCMH negociado de ${usedVcmh.toFixed(2)}%.\n\n`;
+        text += `2. COMPONENTE FINANCEIRO (VCMH)\n`;
+        if (isVcmhManual) text += `Considerado índice negociado de ${usedVcmh.toFixed(2)}%.\n\n`;
+        else if (formData.companySize === 'EMPRESARIAL') text += `Considerado VCMH zero/negociado no cálculo técnico.\n\n`;
         else text += `Aplicado VCMH de referência: ${usedVcmh.toFixed(2)}%.\n\n`;
     }
 
     text += `PLEITO FINAL:\n`;
     if (isNegative) {
-        text += `Solicitamos ISENÇÃO TOTAL (0%) devido à performance positiva do contrato.\n\n`;
+        text += `Solicitamos ISENÇÃO TOTAL (0%) devido à excelente performance do contrato.\n\n`;
     } else if (isTechnicalHigher) {
-        text += `Solicitamos a confirmação do índice de ${proposedRate.toFixed(2)}% (ou inferior), formalizando o deságio técnico aplicado.\n\n`;
+        text += `Solicitamos a confirmação do índice de ${proposedRate.toFixed(2)}% (ou inferior), formalizando a negociação.\n\n`;
     } else {
         text += `Solicitamos a retificação da proposta para o teto de ${techRate.toFixed(2)}%.\n\n`;
     }
     
-    text += `Atenciosamente,\nCedo Seguros - Gestão de Saúde`;
+    text += `Atenciosamente,\nCedo Seguros - Inteligência Atuarial`;
     return text;
   };
 
@@ -268,14 +252,13 @@ export default function App() {
       const usedVcmh = !isNaN(manualVcmhVal) ? manualVcmhVal : dbVcmh;
       const isVcmhManual = !isNaN(manualVcmhVal);
 
-      // --- CÁLCULO TÉCNICO (PRECISION MATH) ---
+      // CÁLCULO TÉCNICO
       const vcmhFactor = 1 + (usedVcmh / 100);
       const currentLossRatio = claims / 100;
       const targetRatio = targetLossRatio / 100;
 
       let technicalNeedRaw = 0;
       if (formData.companySize === 'PME_I') {
-         // CORREÇÃO PME I: O técnico é SEMPRE o índice da tabela (ou manual)
          technicalNeedRaw = usedVcmh;
       } else {
          if (targetRatio > 0) {
@@ -285,12 +268,10 @@ export default function App() {
       }
       
       let technicalCalculated = 0;
-      const poolRef = CONFIG.POOL_2026["Média de Mercado"]; // Apenas para mix, se usado
+      const poolRef = CONFIG.POOL_2026["Média de Mercado"];
 
       switch (formData.calculationMix) {
-        // CORREÇÃO: POOL_100 deve usar o technicalNeedRaw (que já contém o valor da operadora)
-        // e não a média de mercado genérica.
-        case 'POOL_100': technicalCalculated = technicalNeedRaw; break; 
+        case 'POOL_100': technicalCalculated = technicalNeedRaw; break;
         case 'TECH_100': technicalCalculated = technicalNeedRaw; break;
         case 'MIX_50_50': technicalCalculated = (poolRef * 0.5) + (technicalNeedRaw * 0.5); break;
         case 'MIX_70_30': technicalCalculated = (poolRef * 0.7) + (technicalNeedRaw * 0.3); break;
@@ -299,7 +280,15 @@ export default function App() {
       const technicalFinal = manualTechInput !== null ? manualTechInput : technicalCalculated;
       const isManualOverride = manualTechInput !== null;
 
-      // Aging & Projeções
+      // Status de Negociação
+      let status: NegotiationStatus = 'MEDIUM';
+      const diff = proposed - technicalFinal;
+      if (technicalFinal < 0) status = 'EASY'; 
+      else if (diff > 5) status = 'HARD';
+      else if (diff > 10) status = 'CRITICAL';
+      else status = 'MEDIUM';
+
+      // Projeções
       let agingRiskLoad = 0.02;
       if (avgAge > 59) agingRiskLoad = 0.06;
       else if (avgAge > 49) agingRiskLoad = 0.04;
@@ -308,7 +297,6 @@ export default function App() {
       const nextYearProjection = (Math.max(technicalFinal, 0) * 0.5) + usedVcmh + (agingRiskLoad * 100);
       const trendFactor = (1 + (usedVcmh / 100) + agingRiskLoad);
       const valProposed = invoice * (1 + (proposed / 100));
-      
       const fairRateDisplay = (technicalFinal > proposed && proposed > 0) ? proposed : technicalFinal;
       const valFair = invoice * (1 + (fairRateDisplay / 100));
       
@@ -332,6 +320,7 @@ export default function App() {
         usedVcmh,
         agingFactor: agingRiskLoad * 100,
         nextYearProjection: parseFloat(nextYearProjection.toFixed(2)),
+        negotiationStatus: status,
         financialImpact: {
             current: invoice,
             proposedValue: valProposed,
@@ -350,28 +339,30 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] font-sans text-slate-300 pb-20">
+    <div className="min-h-screen bg-[#020617] font-sans text-slate-300 pb-20 selection:bg-[#a3e635] selection:text-slate-900">
       
-      {/* HEADER CEDO SEGUROS */}
-      <div className="bg-[#0f172a] border-b border-slate-800 sticky top-0 z-50">
+      {/* HEADER CEDO SEGUROS FUTURIST */}
+      <div className="bg-[#020617]/80 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-24 flex items-center justify-between">
           <div>
-              <div className="flex items-center gap-2">
-                  <Shield className="w-8 h-8 text-[#a3e635]" fill="currentColor" />
-                  <h1 className="text-3xl font-black text-white tracking-tight">
-                    CEDO <span className="text-[#a3e635]">SEGUROS</span>
+              <div className="flex items-center gap-3">
+                  <div className="bg-[#a3e635] p-1.5 rounded-lg shadow-[0_0_15px_rgba(163,230,53,0.3)]">
+                    <Shield className="w-6 h-6 text-[#020617]" strokeWidth={3} />
+                  </div>
+                  <h1 className="text-3xl font-black text-white tracking-tighter">
+                    CEDO <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#a3e635] to-emerald-400">SEGUROS</span>
                   </h1>
               </div>
-              <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] mt-1 pl-10">
-                NEGOCIAÇÃO ESTRATÉGICA & ATUARIAL
+              <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] mt-1 pl-12 uppercase">
+                Intelligence System v12.0
               </p>
           </div>
           
           <div className="flex items-center gap-4">
              <div className="hidden md:block text-right">
-                <div className="text-[10px] uppercase text-slate-500 font-bold">Safra 2026</div>
-                <div className="text-xs text-[#a3e635] font-mono flex items-center gap-1 justify-end">
-                    <Database className="w-3 h-3" /> ONLINE
+                <div className="text-[10px] uppercase text-slate-500 font-bold tracking-widest">Base de Dados</div>
+                <div className="text-xs text-[#a3e635] font-mono flex items-center gap-1 justify-end animate-pulse">
+                    <Database className="w-3 h-3" /> POOL 2026 LIVE
                 </div>
              </div>
           </div>
@@ -383,23 +374,24 @@ export default function App() {
           
           {/* COLUNA ESQUERDA - INPUTS */}
           <div className="lg:col-span-4 space-y-6">
-            <Card className="border-t-4 border-t-[#a3e635] bg-[#1e293b]">
-                <div className="px-6 py-5 border-b border-slate-700/50 flex justify-between items-center">
+            <Card className="border-t-4 border-t-[#a3e635]">
+                <div className="px-6 py-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/50">
                     <h2 className="text-xs font-bold text-white uppercase flex items-center gap-2 tracking-wider">
                         <Briefcase className="w-4 h-4 text-[#a3e635]" />
-                        Parâmetros
+                        Parâmetros da Apólice
                     </h2>
+                    <Settings className="w-4 h-4 text-slate-600" />
                 </div>
               
               <form onSubmit={handleCalculate} className="p-6 space-y-6">
                 
                 <InputGroup label="Operadora" icon={Building2}>
                   <select 
-                    className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-[#a3e635] outline-none"
+                    className="w-full bg-[#020617] border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-[#a3e635] focus:border-[#a3e635] outline-none transition-all hover:border-slate-600"
                     value={formData.operator}
-                    onChange={handleOperatorChange} // USO DO NOVO HANDLER
+                    onChange={(e) => setFormData({...formData, operator: e.target.value})}
                   >
-                    <option value="">Selecione...</option>
+                    <option value="">Selecione a Operadora...</option>
                     {OPERATORS_LIST.map(op => <option key={op} value={op}>{op}</option>)}
                   </select>
                 </InputGroup>
@@ -407,25 +399,25 @@ export default function App() {
                 <div className="grid grid-cols-2 gap-4">
                     <InputGroup label="Porte" icon={Users}>
                       <select
-                        className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-[#a3e635] outline-none"
+                        className="w-full bg-[#020617] border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-[#a3e635] focus:border-[#a3e635] outline-none transition-all hover:border-slate-600"
                         value={formData.companySize}
-                        onChange={handleSizeChange} // USO DO NOVO HANDLER
+                        onChange={(e) => setFormData({...formData, companySize: e.target.value as CompanySize})}
                       >
-                         <option value="PME_I">PME I (0-29)</option>
-                         <option value="PME_II">PME II (30+)</option>
+                         <option value="PME_I">PME I (Pool)</option>
+                         <option value="PME_II">PME II</option>
                          <option value="EMPRESARIAL">Empresarial</option>
                       </select>
                     </InputGroup>
 
                     {formData.companySize === 'PME_II' && (
-                        <InputGroup label="Mix" icon={Scale}>
+                        <InputGroup label="Metodologia" icon={Scale}>
                             <select
-                                className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-[#a3e635] outline-none"
+                                className="w-full bg-[#020617] border border-slate-700 rounded-lg px-4 py-3 text-sm text-white focus:ring-1 focus:ring-[#a3e635] focus:border-[#a3e635] outline-none transition-all hover:border-slate-600"
                                 value={formData.calculationMix}
                                 onChange={(e) => setFormData({...formData, calculationMix: e.target.value as CalculationMix})}
                             >
-                                <option value="MIX_50_50">Híbrido (50/50)</option>
-                                <option value="MIX_70_30">Híbrido (70 Pool/30 Tec)</option>
+                                <option value="MIX_50_50">Mix 50/50</option>
+                                <option value="MIX_70_30">Mix 70/30</option>
                                 <option value="TECH_100">Técnico Puro</option>
                             </select>
                         </InputGroup>
@@ -433,36 +425,38 @@ export default function App() {
                 </div>
 
                 {/* PAINEL TÉCNICO */}
-                <div className="p-5 bg-[#0f172a] rounded-lg border border-slate-700/50 space-y-5">
+                <div className="p-5 bg-[#0b1120] rounded-xl border border-slate-800 space-y-5 relative overflow-hidden">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-[#a3e635] to-emerald-600"></div>
+                    
                     <div className="flex justify-between items-end">
                          <div className="w-1/2 pr-2">
                              <span className="text-[9px] font-bold text-slate-500 uppercase block mb-1">VCMH Ref.</span>
-                             <div className="text-xs text-slate-300 font-mono bg-[#1e293b] py-2 px-3 rounded border border-slate-700">
-                                {formData.vcmh}%
+                             <div className={`text-xs font-mono py-2 px-3 rounded border flex items-center gap-2 ${formData.vcmh ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-slate-900/50 border-slate-800 text-slate-600'}`}>
+                                {formData.vcmh ? `${formData.vcmh}%` : 'N/A'}
                              </div>
                          </div>
                          <div className="w-1/2 pl-2">
                              <InputGroup label="VCMH Manual" icon={Edit3} highlight={!!formData.manualVcmh}>
                                 <input 
                                     type="number" 
-                                    className="w-full bg-[#1e293b] border border-slate-700 rounded px-3 py-1.5 text-xs font-mono text-[#a3e635] outline-none focus:border-[#a3e635]"
+                                    className="w-full bg-[#020617] border border-slate-700 rounded px-3 py-1.5 text-xs font-mono text-[#a3e635] outline-none focus:border-[#a3e635]"
                                     value={formData.manualVcmh}
                                     onChange={(e) => setFormData({...formData, manualVcmh: e.target.value})}
-                                    placeholder="%"
+                                    placeholder={formData.companySize === 'EMPRESARIAL' ? "Obrigatório" : "Opcional"}
                                 />
                              </InputGroup>
                          </div>
                     </div>
                     
                     <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block">Meta (Break-Even)</label>
-                        <div className="flex bg-[#1e293b] p-1 rounded border border-slate-700">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-wider">Break-Even Point (Meta)</label>
+                        <div className="flex bg-[#020617] p-1 rounded-lg border border-slate-800">
                             {['70', '72', '75'].map(bp => (
                                 <button
                                     key={bp}
                                     type="button"
                                     onClick={() => setFormData({...formData, breakEvenPoint: bp})}
-                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded transition-all ${formData.breakEvenPoint === bp ? 'bg-[#a3e635] text-slate-900' : 'text-slate-400 hover:text-white'}`}
+                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${formData.breakEvenPoint === bp ? 'bg-[#a3e635] text-slate-900 shadow-lg shadow-[#a3e635]/20' : 'text-slate-500 hover:text-slate-300'}`}
                                 >
                                     {bp}%
                                 </button>
@@ -471,21 +465,21 @@ export default function App() {
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
-                        <InputGroup label="Sinistralidade %" icon={ShieldAlert}>
+                        <InputGroup label="Sinistro %" icon={ShieldAlert}>
                              <input 
                                 type="number" 
                                 disabled={formData.companySize === 'PME_I'} 
-                                className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono font-bold text-white outline-none focus:border-[#a3e635] disabled:opacity-50"
+                                className="w-full bg-[#020617] border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono font-bold text-white outline-none focus:border-[#a3e635] disabled:opacity-30 disabled:cursor-not-allowed"
                                 value={formData.claimsRatio}
                                 onChange={(e) => setFormData({...formData, claimsRatio: e.target.value})}
-                                placeholder={formData.companySize === 'PME_I' ? "-" : "0.00"}
+                                placeholder={formData.companySize === 'PME_I' ? "Pool Fix" : "0.00"}
                             />
                         </InputGroup>
                         
                         <InputGroup label="Técnico (Manual)" icon={Edit3} highlight={!!formData.manualTechnical}>
                              <input 
                                 type="number" 
-                                className="w-full bg-[#1e293b] border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono font-bold text-[#a3e635] placeholder-slate-600 outline-none focus:border-[#a3e635]"
+                                className="w-full bg-[#020617] border border-slate-700 rounded-lg px-3 py-2.5 text-sm font-mono font-bold text-[#a3e635] placeholder-slate-700 outline-none focus:border-[#a3e635]"
                                 value={formData.manualTechnical}
                                 onChange={(e) => setFormData({...formData, manualTechnical: e.target.value})}
                                 placeholder="Auto"
@@ -494,12 +488,12 @@ export default function App() {
                     </div>
                 </div>
 
-                <div className="space-y-4 pt-2 border-t border-slate-800">
+                <div className="space-y-4 pt-4 border-t border-slate-800">
                     <div className="grid grid-cols-2 gap-4">
                         <InputGroup label="Fatura Atual" icon={DollarSign}>
                         <input 
                             type="number" 
-                            className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono text-white focus:border-[#a3e635] outline-none"
+                            className="w-full bg-[#020617] border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono text-white focus:border-[#a3e635] outline-none"
                             value={formData.currentInvoice}
                             onChange={(e) => setFormData({...formData, currentInvoice: e.target.value})}
                         />
@@ -507,7 +501,7 @@ export default function App() {
                         <InputGroup label="Proposta (%)" icon={AlertTriangle}>
                         <input 
                             type="number" 
-                            className="w-full bg-[#0f172a] border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono font-bold text-red-400 focus:border-red-500 outline-none"
+                            className="w-full bg-[#020617] border border-slate-700 rounded-lg px-4 py-2.5 text-sm font-mono font-bold text-rose-400 focus:border-rose-500 outline-none"
                             value={formData.proposedReadjustment}
                             onChange={(e) => setFormData({...formData, proposedReadjustment: e.target.value})}
                         />
@@ -518,9 +512,12 @@ export default function App() {
                 <button 
                   type="submit" 
                   disabled={loading}
-                  className="w-full bg-[#a3e635] hover:bg-[#84cc16] text-slate-900 font-bold text-sm py-4 rounded-xl shadow-lg transition-all flex items-center justify-center gap-3"
+                  className="w-full bg-gradient-to-r from-[#a3e635] to-emerald-500 hover:from-[#84cc16] hover:to-emerald-600 text-slate-900 font-bold text-sm py-4 rounded-xl shadow-lg shadow-emerald-900/20 transition-all flex items-center justify-center gap-3 relative overflow-hidden group"
                 >
-                  {loading ? 'Calculando Cedo AI...' : <>CALCULAR CENÁRIO <ArrowRight className="w-4 h-4" /></>}
+                  <span className="relative z-10 flex items-center gap-2">
+                      {loading ? 'Processando IA...' : <>CALCULAR CENÁRIO <Zap className="w-4 h-4 fill-slate-900" /></>}
+                  </span>
+                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                 </button>
               </form>
             </Card>
@@ -529,60 +526,60 @@ export default function App() {
           {/* COLUNA DIREITA - RESULTADOS */}
           <div className="lg:col-span-8">
             {!result ? (
-              <div className="h-full min-h-[600px] flex flex-col items-center justify-center bg-[#1e293b]/50 border border-dashed border-slate-700 rounded-3xl text-slate-500 p-10 text-center">
-                <Activity className="w-16 h-16 text-slate-700 mb-4" />
-                <h3 className="text-lg font-bold uppercase tracking-wider text-slate-400">Cedo Seguros Analytics</h3>
-                <p className="text-sm mt-2">A melhor defesa para seu plano de saúde.</p>
+              <div className="h-full min-h-[600px] flex flex-col items-center justify-center bg-[#0f172a]/50 border border-dashed border-slate-800 rounded-3xl text-slate-600 p-10 text-center backdrop-blur-sm">
+                <div className="w-20 h-20 bg-slate-900 rounded-full flex items-center justify-center mb-6 shadow-inner border border-slate-800">
+                    <Activity className="w-10 h-10 text-slate-700" />
+                </div>
+                <h3 className="text-xl font-bold uppercase tracking-wider text-slate-500">Cedo Analytics</h3>
+                <p className="text-sm mt-2 max-w-sm">Insira os dados da apólice para ativar o motor de inteligência artificial.</p>
               </div>
             ) : (
-              <div className="space-y-6 animate-in fade-in duration-700">
+              <div className="space-y-6 animate-in slide-in-from-bottom-8 fade-in duration-700">
                 
                 {/* 1. CARDS DE DESTAQUE */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* CARD PROPOSTO */}
-                    <Card className="bg-[#1e293b] border-l-4 border-l-red-500">
+                    <Card className="border-l-4 border-l-rose-500 bg-gradient-to-br from-[#0f172a] to-rose-950/20">
                         <div className="p-6">
                             <div className="flex justify-between mb-4">
-                                <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest">Reajuste Operadora</h3>
+                                <h3 className="text-xs font-bold text-rose-400 uppercase tracking-widest">Cenário Operadora</h3>
                                 <Badge variant="red">Proposta</Badge>
                             </div>
                             <div className="flex items-baseline gap-1">
                                 <span className="text-5xl font-black text-white">{result.proposedReadjustment}</span>
-                                <span className="text-xl font-bold text-slate-500">%</span>
+                                <span className="text-xl font-bold text-slate-600">%</span>
                             </div>
-                            <div className="mt-4 pt-4 border-t border-slate-700">
-                               <p className="text-xs text-slate-400">Nova Fatura: <strong className="text-red-400">{formatCurrency(result.financialImpact.proposedValue)}</strong></p>
+                            <div className="mt-4 pt-4 border-t border-slate-800">
+                               <p className="text-xs text-slate-400">Impacto: <strong className="text-rose-400">{formatCurrency(result.financialImpact.proposedValue)}</strong></p>
                             </div>
                         </div>
                     </Card>
 
-                    {/* CARD JUSTO/NEGOCIADO */}
-                    <Card className={`bg-[#1e293b] border-l-4 ${result.isTechnicalHigher ? 'border-l-yellow-500' : 'border-l-[#a3e635]'}`}>
+                    <Card className={`border-l-4 ${result.isTechnicalHigher ? 'border-l-amber-500' : 'border-l-[#a3e635]'} bg-gradient-to-br from-[#0f172a] to-emerald-950/20`}>
                         <div className="p-6">
                             <div className="flex justify-between mb-4">
                                 <div>
-                                    <h3 className={`text-xs font-bold uppercase tracking-widest ${result.isTechnicalHigher ? 'text-yellow-400' : 'text-[#a3e635]'}`}>
-                                        {result.isTechnicalHigher ? 'Manutenção (Flexibilizado)' : 'Reajuste Justo'}
+                                    <h3 className={`text-xs font-bold uppercase tracking-widest ${result.isTechnicalHigher ? 'text-amber-400' : 'text-[#a3e635]'}`}>
+                                        {result.isTechnicalHigher ? 'Manutenção (Estratégia)' : 'Técnico Justo'}
                                     </h3>
                                 </div>
-                                <Badge variant={result.isTechnicalHigher ? 'orange' : 'lime'}>
-                                    {result.isTechnicalHigher ? 'Conquista' : 'Cedo IA'}
+                                <Badge variant={result.isTechnicalHigher ? 'orange' : 'neon'}>
+                                    CEDO IA
                                 </Badge>
                             </div>
                             <div className="flex items-baseline gap-1">
-                                <span className={`text-5xl font-black ${result.isTechnicalHigher ? 'text-yellow-500' : 'text-[#a3e635]'}`}>
+                                <span className={`text-5xl font-black ${result.isTechnicalHigher ? 'text-amber-400' : 'text-[#a3e635]'}`}>
                                     {result.isTechnicalHigher ? result.proposedReadjustment : result.technicalReadjustment}
                                 </span>
-                                <span className="text-xl font-bold text-slate-500">%</span>
+                                <span className="text-xl font-bold text-slate-600">%</span>
                             </div>
-                            <div className="mt-4 pt-4 border-t border-slate-700">
+                            <div className="mt-4 pt-4 border-t border-slate-800">
                                 {result.isTechnicalHigher ? (
-                                    <p className="text-xs font-bold text-yellow-500">
-                                        Risco real: {result.technicalReadjustment}%. Você está ganhando da técnica.
+                                    <p className="text-xs font-bold text-amber-500 flex items-center gap-2">
+                                        <Shield className="w-3 h-3" /> Blindar Conquista (Técnico: {result.technicalReadjustment}%)
                                     </p>
                                 ) : (
                                     <p className="text-xs font-bold text-[#a3e635] flex items-center gap-2">
-                                        <ArrowRight className="w-4 h-4" /> Economia: {formatCurrency(result.financialImpact.accumulatedSaving)}/ano
+                                        <ArrowRight className="w-4 h-4" /> Economia: {formatCurrency(result.financialImpact.accumulatedSaving)}
                                     </p>
                                 )}
                             </div>
@@ -590,73 +587,84 @@ export default function App() {
                     </Card>
                 </div>
 
-                {/* 2. CARD IA PREDICTIVE 2027 */}
-                <Card className="border-t border-indigo-500/50 relative overflow-hidden">
-                     <div className="absolute top-0 right-0 p-4 opacity-10">
-                        <BrainCircuit className="w-24 h-24 text-indigo-400" />
-                     </div>
-                     <div className="p-6 flex justify-between items-center relative z-10">
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <Badge variant="purple">IA PREDICTIVE 2027</Badge>
-                                <span className="text-[10px] text-slate-500 uppercase font-bold">Visão de Longo Prazo</span>
-                            </div>
-                            <h3 className="text-2xl font-bold text-white">
-                                Projeção de Risco Próxima Safra: <span className="text-indigo-400">{result.nextYearProjection}%</span>
-                            </h3>
-                            <p className="text-xs text-slate-400 mt-1 max-w-md">
-                                Baseado no envelhecimento natural da carteira e tendência do VCMH atual. Se nada for feito, este é o cenário provável.
-                            </p>
+                {/* 2. TERMÔMETRO DE NEGOCIAÇÃO */}
+                <Card className="p-4 flex items-center gap-4 bg-gradient-to-r from-slate-900 to-slate-800">
+                    <div className={`p-3 rounded-full ${result.negotiationStatus === 'EASY' ? 'bg-emerald-500/20 text-emerald-400' : result.negotiationStatus === 'HARD' ? 'bg-rose-500/20 text-rose-400' : 'bg-blue-500/20 text-blue-400'}`}>
+                        <Thermometer className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                        <div className="flex justify-between mb-1">
+                            <span className="text-xs font-bold text-slate-400 uppercase">Dificuldade da Negociação</span>
+                            <span className={`text-xs font-bold uppercase ${result.negotiationStatus === 'EASY' ? 'text-emerald-400' : result.negotiationStatus === 'HARD' ? 'text-rose-400' : 'text-blue-400'}`}>
+                                {result.negotiationStatus === 'EASY' ? 'Favorável' : result.negotiationStatus === 'HARD' ? 'Desafiadora' : 'Moderada'}
+                            </span>
                         </div>
-                        <div className="hidden md:block">
-                             <TrendingUp className="w-12 h-12 text-indigo-500" />
+                        <div className="h-2 w-full bg-slate-700 rounded-full overflow-hidden">
+                            <div 
+                                className={`h-full rounded-full transition-all duration-1000 ${result.negotiationStatus === 'EASY' ? 'w-1/3 bg-emerald-500' : result.negotiationStatus === 'HARD' ? 'w-full bg-rose-500' : 'w-2/3 bg-blue-500'}`}
+                            ></div>
                         </div>
-                     </div>
+                    </div>
                 </Card>
 
-                {/* 3. CARD DIDÁTICO */}
-                <Card className="bg-[#151e32]">
-                    <div className="px-6 py-4 border-b border-slate-700 flex items-center gap-2">
-                        <Lightbulb className="w-4 h-4 text-yellow-400" />
-                        <h3 className="text-xs font-bold text-white uppercase">Entenda o Cálculo (Transparência)</h3>
+                {/* 3. STORYTELLING FINANCEIRO (NOVO CARD APARTADO) */}
+                <Card className="border border-slate-800">
+                    <div className="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-[#0b1120]">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                             <Clock className="w-4 h-4 text-indigo-400" /> Jornada Financeira (3 Anos)
+                        </h3>
+                        <Badge variant="blue">Visão de Longo Prazo</Badge>
                     </div>
                     <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div className="space-y-2">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Passo 1: Financeiro</span>
-                            <p className="text-sm text-slate-300">
-                                Aplicamos a inflação médica (VCMH) de <strong>{result.usedVcmh}%</strong> sobre o custo atual para projetar o preço base do próximo ano.
-                            </p>
+                        
+                        {/* ANO 1 */}
+                        <div className="bg-slate-900/50 rounded-xl p-4 border border-emerald-500/30 relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/10 rounded-full blur-xl -mr-6 -mt-6"></div>
+                            <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-2 block">Ciclo Atual (Ano 1)</span>
+                            <div className="space-y-1">
+                                <div className="text-lg font-mono text-white font-bold">{formatCurrency(result.financialImpact.projections.m12)} <span className="text-[10px] text-slate-500 font-sans font-normal">/mês</span></div>
+                                <div className="text-xs text-slate-500">Anual: {formatCurrency(result.financialImpact.projections.m12 * 12)}</div>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Passo 2: Técnico</span>
-                            <p className="text-sm text-slate-300">
-                                Comparamos o uso real ({formData.claimsRatio}%) com a meta ({formData.breakEvenPoint}%). O desvio gera o fator de reequilíbrio.
-                            </p>
+
+                        {/* ANO 2 */}
+                        <div className="bg-slate-900/50 rounded-xl p-4 border border-yellow-500/30 relative overflow-hidden group">
+                             <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-500/10 rounded-full blur-xl -mr-6 -mt-6"></div>
+                            <span className="text-[10px] font-bold text-yellow-400 uppercase tracking-wider mb-2 block">Próxima Renovação (Ano 2)</span>
+                            <div className="space-y-1">
+                                <div className="text-lg font-mono text-white font-bold">{formatCurrency(result.financialImpact.projections.m24)} <span className="text-[10px] text-slate-500 font-sans font-normal">/mês</span></div>
+                                <div className="text-xs text-slate-500">Anual: {formatCurrency(result.financialImpact.projections.m24 * 12)}</div>
+                            </div>
                         </div>
-                        <div className="space-y-2">
-                            <span className="text-xs font-bold text-slate-500 uppercase">Passo 3: Decisão</span>
-                            <p className="text-sm text-slate-300">
-                                A IA pondera os dois fatores. Se o cálculo técnico for menor que a proposta, geramos a defesa para redução.
-                            </p>
+
+                        {/* ANO 3 */}
+                        <div className="bg-slate-900/50 rounded-xl p-4 border border-rose-500/30 relative overflow-hidden group">
+                             <div className="absolute top-0 right-0 w-16 h-16 bg-rose-500/10 rounded-full blur-xl -mr-6 -mt-6"></div>
+                            <span className="text-[10px] font-bold text-rose-400 uppercase tracking-wider mb-2 block">Futuro Projetado (Ano 3)</span>
+                            <div className="space-y-1">
+                                <div className="text-lg font-mono text-white font-bold">{formatCurrency(result.financialImpact.projections.m36)} <span className="text-[10px] text-slate-500 font-sans font-normal">/mês</span></div>
+                                <div className="text-xs text-slate-500">Anual: {formatCurrency(result.financialImpact.projections.m36 * 12)}</div>
+                            </div>
                         </div>
+
                     </div>
                 </Card>
 
                 {/* 4. DEFESA TÉCNICA */}
                 <Card className="border-l-4 border-l-blue-600">
-                    <div className="px-6 py-4 bg-[#151e32] border-b border-slate-700 flex justify-between items-center">
+                    <div className="px-6 py-4 bg-slate-900/80 border-b border-slate-800 flex justify-between items-center">
                         <h3 className="text-xs font-bold text-white uppercase flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-blue-500" /> Minuta de Defesa
+                            <FileText className="w-4 h-4 text-blue-500" /> Carta de Defesa
                         </h3>
                         <button 
                             onClick={() => navigator.clipboard.writeText(result.defenseText)}
-                            className="text-xs flex items-center gap-2 text-white bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded transition-colors"
+                            className="text-xs flex items-center gap-2 text-white bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-lg transition-all shadow-lg shadow-blue-900/20 active:scale-95"
                         >
-                            <Copy className="w-3 h-3" /> Copiar
+                            <Copy className="w-3 h-3" /> COPIAR TEXTO
                         </button>
                     </div>
                     <div className="p-6 bg-[#0f172a]">
-                        <pre className="whitespace-pre-wrap font-serif text-sm text-slate-300 leading-relaxed">
+                        <pre className="whitespace-pre-wrap font-serif text-sm text-slate-300 leading-relaxed pl-2 border-l-2 border-slate-700">
                             {result.defenseText}
                         </pre>
                     </div>
