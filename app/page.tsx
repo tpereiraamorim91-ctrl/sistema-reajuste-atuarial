@@ -6,15 +6,14 @@ import {
   CheckCircle2, AlertTriangle, ArrowRight, ShieldAlert, 
   Activity, DollarSign, Briefcase, LineChart, Lock, 
   FileText, Copy, Scale, Info, RefreshCw, Settings,
-  UserPlus, Percent, Database, Edit3, Shield, Zap, Thermometer, BarChart3, Clock, Brain, BookOpen, Microscope, Lightbulb
+  UserPlus, Percent, Database, Edit3, Shield, Zap, Thermometer, BarChart3, Clock, Brain, Microscope, BookOpen, Lightbulb, Layers
 } from 'lucide-react';
 
 // --- CONFIGURAÇÃO E DADOS (SAFRA 2026 - AUDITADO) ---
 const CONFIG = {
-  VERSION: "13.0.0 (AI + Didactic)",
+  VERSION: "14.0.0 (Didactic AI)",
   LAST_UPDATE: "16/02/2026",
   
-  // TABELA OFICIAL POOL PME I (RN 565)
   POOL_2026: {
     "Ameplan": 13.50, "Amil": 15.98, "Ana Costa": 15.13, "Assim Saúde": 15.59,
     "Blue Med": 19.38, "Bradesco Saúde": 15.11, "Care Plus": 18.81,
@@ -28,7 +27,6 @@ const CONFIG = {
     "Alice": 12.50, "Média de Mercado": 14.50
   } as Record<string, number>,
 
-  // VCMH FINANCEIRO (PME II / EMPRESARIAL REFERÊNCIA)
   VCMH_INDICES: {
     "Bradesco Saúde": 16.5, "SulAmérica": 15.8, "Amil": 14.2,
     "NotreDame Intermédica": 13.8, "Porto Seguro": 14.9, "Seguros Unimed": 14.0,
@@ -88,7 +86,7 @@ const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-// --- DESIGN SYSTEM: NEON AURORA ---
+// --- DESIGN SYSTEM ---
 const Card = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => (
   <div className={`bg-[#0f172a] border border-slate-800/60 rounded-2xl shadow-2xl relative overflow-hidden backdrop-blur-xl ${className}`}>
     {children}
@@ -145,7 +143,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
 
-  // --- 1. INTELLIGENT RESET ---
+  // --- INTELLIGENT RESET ---
   useEffect(() => {
     let indexValue = 15.0;
     
@@ -164,7 +162,6 @@ export default function App() {
     setFormData(prev => ({
         ...prev,
         vcmh: indexValue === 0 ? '' : indexValue.toFixed(2), 
-        // SAFETY RESET
         claimsRatio: '',
         currentInvoice: '',
         proposedReadjustment: '',
@@ -180,7 +177,6 @@ export default function App() {
     }
 
     setResult(null);
-
   }, [formData.operator, formData.companySize, formData.calculationMix]);
 
 
@@ -252,7 +248,6 @@ export default function App() {
       const usedVcmh = !isNaN(manualVcmhVal) ? manualVcmhVal : dbVcmh;
       const isVcmhManual = !isNaN(manualVcmhVal);
 
-      // CÁLCULO TÉCNICO
       const vcmhFactor = 1 + (usedVcmh / 100);
       const currentLossRatio = claims / 100;
       const targetRatio = targetLossRatio / 100;
@@ -280,7 +275,6 @@ export default function App() {
       const technicalFinal = manualTechInput !== null ? manualTechInput : technicalCalculated;
       const isManualOverride = manualTechInput !== null;
 
-      // Status
       let status: NegotiationStatus = 'MEDIUM';
       const diff = proposed - technicalFinal;
       if (technicalFinal < 0) status = 'EASY'; 
@@ -288,8 +282,7 @@ export default function App() {
       else if (diff > 10) status = 'CRITICAL';
       else status = 'MEDIUM';
 
-      // Aging & Projeções
-      let agingRiskLoad = 0.02; // Default 2%
+      let agingRiskLoad = 0.02;
       if (avgAge > 59) agingRiskLoad = 0.06;
       else if (avgAge > 49) agingRiskLoad = 0.04;
       else if (avgAge < 30) agingRiskLoad = 0.01;
@@ -354,7 +347,7 @@ export default function App() {
                   </h1>
               </div>
               <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] mt-1 pl-12 uppercase">
-                Intelligence System v13.0
+                Intelligence System v14.0
               </p>
           </div>
           
@@ -645,7 +638,7 @@ export default function App() {
                     </div>
                 </Card>
 
-                {/* 4. BLOCO INTELIGÊNCIA ARTIFICIAL & FUTURO (NOVO) */}
+                {/* 4. BLOCO INTELIGÊNCIA ARTIFICIAL & FUTURO (NOVO e EVIDENTE) */}
                 <Card className="border border-indigo-500/30 overflow-hidden relative">
                      <div className="absolute inset-0 bg-indigo-950/20 backdrop-blur-sm z-0"></div>
                      <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-0">
@@ -690,7 +683,7 @@ export default function App() {
                      </div>
                 </Card>
 
-                {/* 5. METODOLOGIA DIDÁTICA (NOVO) */}
+                {/* 5. METODOLOGIA DIDÁTICA (NOVO e EVIDENTE) */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Card className="p-5 border-t-2 border-t-slate-600 bg-[#0f172a]">
                         <div className="w-8 h-8 rounded-lg bg-slate-800 flex items-center justify-center mb-3">
