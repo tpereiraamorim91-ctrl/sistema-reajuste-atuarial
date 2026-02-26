@@ -11,7 +11,7 @@ import {
 
 // --- CONFIGURAÇÃO E DADOS (SAFRA 2026 - AUDITADO) ---
 const CONFIG = {
-  VERSION: "17.0.0 (Quantum Analytics)",
+  VERSION: "17.1.0 (Quantum Analytics)",
   LAST_UPDATE: "26/02/2026",
   
   POOL_2026: {
@@ -67,7 +67,7 @@ interface FormData {
 interface AnalysisResult {
   technicalReadjustment: number;
   proposedReadjustment: number;
-  targetReadjustment: number; // A NOVA MÁGICA: O Alvo
+  targetReadjustment: number;
   marginApplied: number;
   savingPotential: number;
   isNegative: boolean;
@@ -84,7 +84,7 @@ interface AnalysisResult {
     proposedValue: number;
     fairValue: number;
     targetValue: number;
-    accumulatedSaving: number; // Baseado no alvo
+    accumulatedSaving: number;
     projections: { m12: number; m24: number; m36: number; }
   };
   defenseText: string;
@@ -200,7 +200,7 @@ export default function App() {
     }
   }, [formData.claimsPool, formData.weightPool, formData.claimsIndividual, formData.weightIndividual, formData.companySize, formData.calculationMix]);
 
-  // --- GERADOR DE DEFESA QUANTUM (PERFEIÇÃO TÉCNICA E ANCORAGEM) ---
+  // --- GERADOR DE DEFESA QUANTUM ---
   const generateDefenseText = (
       techRate: number, proposedRate: number, targetRate: number, claims: number, 
       target: number, operator: string, isNegative: boolean, 
@@ -290,25 +290,20 @@ export default function App() {
       }
       
       const technicalFinal = manualTechInput !== null ? manualTechInput : technicalNeedRaw;
+      const isManualOverride = manualTechInput !== null; // <--- CORREÇÃO AQUI
 
-      // --- A MÁGICA: ESTRATÉGIA DE ANCORAGEM (TARGET RATE) ---
-      // A regra de ouro de negociação: Sempre pedir menos.
+      // --- ESTRATÉGIA DE ANCORAGEM (TARGET RATE) ---
       let targetRate = 0;
       let appliedMargin = 0;
 
       if (formData.companySize === 'PME_I') {
-          // Pool puro: Pede deságio comercial sobre a tabela
           appliedMargin = 2.5;
           targetRate = Math.max(0, usedVcmh - appliedMargin);
       } else {
           if (technicalFinal > proposed) {
-              // Operadora foi boazinha e pediu menos que o técnico. 
-              // Regra Cedo: Não aceitamos. Pedimos MENOS que o proposto.
               appliedMargin = 2.0;
               targetRate = Math.max(0, proposed - appliedMargin);
           } else {
-              // Operadora pediu mais que o justo.
-              // Regra Cedo: Pegamos o Técnico Justo e arrancamos mais uma margem de negociação.
               appliedMargin = 3.5;
               targetRate = Math.max(0, technicalFinal - appliedMargin);
           }
@@ -332,7 +327,7 @@ export default function App() {
       const trendFactor = (1 + (usedVcmh / 100) + agingRiskLoad);
       const valProposed = invoice * (1 + (proposed / 100));
       const valFair = invoice * (1 + (technicalFinal / 100));
-      const valTarget = invoice * (1 + (targetRate / 100)); // Valor que queremos assinar
+      const valTarget = invoice * (1 + (targetRate / 100));
       
       const isNegative = technicalFinal <= 0;
       const isTechnicalHigher = technicalFinal > proposed;
@@ -373,7 +368,7 @@ export default function App() {
         } : undefined
       });
       setLoading(false);
-    }, 1200); // Um pouco mais de delay para dar sensação de processamento complexo
+    }, 1200); 
   };
 
   return (
@@ -400,7 +395,7 @@ export default function App() {
                     CEDO <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">SEGUROS</span>
                   </h1>
                   <p className="text-[9px] text-cyan-500/80 font-mono font-bold tracking-[0.3em] uppercase mt-0.5">
-                    Quantum Actuarial Core v17.0
+                    Quantum Actuarial Core v17.1
                   </p>
               </div>
           </div>
@@ -661,7 +656,7 @@ export default function App() {
                     </Card>
                 </div>
 
-                {/* 2. ESTRATÉGIA DE ANCORAGEM (NOVIDADE) */}
+                {/* 2. ESTRATÉGIA DE ANCORAGEM */}
                 <Card className="border-l-4 border-l-amber-400 bg-gradient-to-r from-[#0f172a] to-[#020617]">
                     <div className="p-5 flex flex-col md:flex-row gap-6 items-center">
                         <div className="w-16 h-16 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
@@ -674,7 +669,7 @@ export default function App() {
                             </div>
                             <p className="text-sm text-slate-300 leading-relaxed">
                                 {result.companySize === 'PME_I' 
-                                    ? `Aperamos um deságio comercial de ${result.marginApplied}% sobre o índice oficial do Pool (${result.usedVcmh}%) justificando pela retenção frente à agressividade do mercado.`
+                                    ? `Apuramos um deságio comercial de ${result.marginApplied}% sobre o índice oficial do Pool (${result.usedVcmh}%) justificando pela retenção frente à agressividade do mercado.`
                                     : result.isTechnicalHigher 
                                         ? `A operadora propôs ${result.proposedReadjustment}%, que é ABAIXO do risco técnico (${result.technicalReadjustment}%). Nossa tese: Nunca aceite a primeira oferta. Aplicamos uma âncora de -${result.marginApplied}%, mirando ${result.targetReadjustment}% sob a justificativa de budget e retenção preventiva.`
                                         : `O risco matemático exato é ${result.technicalReadjustment}%, mas incluímos uma "Gordura de Negociação" de ${result.marginApplied}% para iniciar o pleito. O Alvo de Ancoragem ideal para a reunião é ${result.targetReadjustment}%.`}
@@ -696,10 +691,8 @@ export default function App() {
                         <span className="text-[10px] font-bold text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-slate-800">Projeção Base: Alvo Estratégico</span>
                     </div>
                     <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-                        {/* Linha conectora */}
                         <div className="hidden md:block absolute top-1/2 left-10 right-10 h-[2px] bg-gradient-to-r from-emerald-500/20 via-cyan-500/20 to-rose-500/20 -translate-y-1/2 z-0"></div>
                         
-                        {/* ANO 1 */}
                         <div className="bg-[#020617] rounded-2xl p-5 border border-emerald-500/30 relative z-10 shadow-lg group hover:-translate-y-1 transition-transform">
                             <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
                             <div className="flex justify-between items-center mb-4">
@@ -711,7 +704,7 @@ export default function App() {
                                 <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Fatura Mensal</div>
                             </div>
                         </div>
-                        {/* ANO 2 */}
+                        
                         <div className="bg-[#020617] rounded-2xl p-5 border border-cyan-500/30 relative z-10 shadow-lg group hover:-translate-y-1 transition-transform delay-75">
                              <div className="absolute top-0 right-0 w-20 h-20 bg-cyan-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
                             <div className="flex justify-between items-center mb-4">
@@ -723,7 +716,7 @@ export default function App() {
                                 <div className="text-[10px] text-slate-500 uppercase tracking-wider font-bold">Projeção Mensal</div>
                             </div>
                         </div>
-                        {/* ANO 3 */}
+                        
                         <div className="bg-[#020617] rounded-2xl p-5 border border-rose-500/30 relative z-10 shadow-lg group hover:-translate-y-1 transition-transform delay-150">
                              <div className="absolute top-0 right-0 w-20 h-20 bg-rose-500/10 rounded-full blur-2xl -mr-10 -mt-10"></div>
                             <div className="flex justify-between items-center mb-4">
