@@ -11,8 +11,8 @@ import {
 
 // --- CONFIGURAÇÃO E DADOS (SAFRA 2026 - AUDITADO) ---
 const CONFIG = {
-  VERSION: "16.0.0 (Simplified Method)",
-  LAST_UPDATE: "16/02/2026",
+  VERSION: "16.1.0 (Strategic Defense 65%)",
+  LAST_UPDATE: "18/02/2026",
   
   POOL_2026: {
     "Ameplan": 13.50, "Amil": 15.98, "Ana Costa": 15.13, "Assim Saúde": 15.59,
@@ -42,7 +42,6 @@ const OPERATORS_LIST = [
 
 // --- TIPAGEM ---
 type CompanySize = 'PME_I' | 'PME_II' | 'EMPRESARIAL';
-// MUDANÇA: Simplificamos o Mix para apenas duas lógicas principais
 type CalculationMix = 'WEIGHTED' | 'INDIVIDUAL'; 
 type NegotiationStatus = 'EASY' | 'MEDIUM' | 'HARD' | 'CRITICAL';
 
@@ -143,7 +142,7 @@ export default function App() {
     anniversaryMonth: new Date().toLocaleString('pt-BR', { month: 'long' }),
     operator: '',
     companySize: 'PME_II',
-    calculationMix: 'WEIGHTED', // Default para PME II
+    calculationMix: 'WEIGHTED', 
     breakEvenPoint: '75',
     averageAge: '',
     
@@ -194,15 +193,14 @@ export default function App() {
         averageAge: ''
     }));
 
-    // Reset Defaults com base no porte
-    if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'INDIVIDUAL' })); // PME I não tem mix ponderado do usuário
+    if (formData.companySize === 'PME_I') setFormData(prev => ({ ...prev, calculationMix: 'INDIVIDUAL' })); 
     if (formData.companySize === 'EMPRESARIAL') setFormData(prev => ({ ...prev, calculationMix: 'INDIVIDUAL' }));
-    if (formData.companySize === 'PME_II') setFormData(prev => ({ ...prev, calculationMix: 'WEIGHTED' })); // PME II começa "Por Peso"
+    if (formData.companySize === 'PME_II') setFormData(prev => ({ ...prev, calculationMix: 'WEIGHTED' })); 
 
     setResult(null);
-  }, [formData.operator, formData.companySize]); // Removi calculationMix do array de dependência para evitar loop infinito no reset
+  }, [formData.operator, formData.companySize]); 
 
-  // --- 2. CÁLCULO DINÂMICO DE SINISTRO PME II (WEIGHTED) ---
+  // --- 2. CÁLCULO DINÂMICO DE SINISTRO PME II ---
   useEffect(() => {
     if (formData.companySize === 'PME_II' && formData.calculationMix === 'WEIGHTED') {
         const pool = parseFloat(formData.claimsPool) || 0;
@@ -212,7 +210,6 @@ export default function App() {
         
         const totalWeight = wPool + wInd;
         if (totalWeight > 0 && (pool > 0 || ind > 0)) {
-            // Média Ponderada
             const weightedAverage = ((pool * wPool) + (ind * wInd)) / totalWeight;
             setFormData(prev => ({ ...prev, claimsRatio: weightedAverage.toFixed(2) }));
         }
@@ -220,7 +217,7 @@ export default function App() {
   }, [formData.claimsPool, formData.weightPool, formData.claimsIndividual, formData.weightIndividual, formData.companySize, formData.calculationMix]);
 
 
-  // --- GERADOR DE DEFESA ---
+  // --- GERADOR DE DEFESA ESTRATÉGICA (VIABILIDADE) ---
   const generateDefenseText = (
       techRate: number, proposedRate: number, claims: number, 
       target: number, operator: string, isNegative: boolean, 
@@ -248,6 +245,7 @@ export default function App() {
             text += `Apólice com sinistralidade acumulada de ${claims.toFixed(2)}% (Break-even: ${target}%).\n`;
         }
         
+        // ESTRATÉGIA VIABILIZADORA (MELHORIA SOLICITADA)
         if (isTechnicalHigher) {
              text += `Nossa auditoria aponta que a necessidade técnica estrita seria de ${techRate.toFixed(2)}%. Reconhecemos o deságio comercial aplicado na proposta (${proposedRate.toFixed(2)}%).\n`;
              text += `Contudo, visando a sustentabilidade financeira da empresa cliente, solicitamos a manutenção deste patamar ou concessão adicional de relacionamento.\n\n`;
@@ -256,6 +254,11 @@ export default function App() {
              text += `Não há fundamentação técnica para a aplicação de índice superior ao equilíbrio contratual.\n\n`;
         }
         
+        // ARGUMENTO EXTRA PARA META DE 65% OU CÁLCULO ALTO
+        if (target <= 65 && techRate > 15) {
+             text += `IMPORTANTE: Ressaltamos que a meta de sinistralidade de ${target}% é extremamente agressiva para o perfil da carteira. Para viabilizar a renovação, sugerimos a revisão deste parâmetro ou o expurgo de eventos não-recorrentes do cálculo.\n\n`;
+        }
+
         text += `2. COMPONENTE FINANCEIRO (VCMH)\n`;
         if (isVcmhManual) text += `Considerado índice negociado de ${usedVcmh.toFixed(2)}%.\n\n`;
         else if (formData.companySize === 'EMPRESARIAL') text += `Considerado VCMH zero/negociado no cálculo técnico.\n\n`;
@@ -306,9 +309,6 @@ export default function App() {
          }
       }
       
-      // CÁLCULO FINAL (Agora simplificado: ou é o que calculamos acima, ou o PME I)
-      // Se for "WEIGHTED", o claimsRatio já foi ajustado pelo useEffect para ser a média ponderada.
-      // A fórmula technicalNeedRaw usa esse claimsRatio ajustado.
       let technicalCalculated = technicalNeedRaw;
 
       const technicalFinal = manualTechInput !== null ? manualTechInput : technicalCalculated;
@@ -391,7 +391,7 @@ export default function App() {
                   </h1>
               </div>
               <p className="text-[10px] text-slate-500 font-bold tracking-[0.2em] mt-1 pl-12 uppercase">
-                Intelligence System v16.0
+                Intelligence System v16.1
               </p>
           </div>
           
@@ -569,7 +569,7 @@ export default function App() {
                         <div>
                             <label className="text-[10px] font-bold text-slate-500 uppercase mb-2 block tracking-wider">Break-Even Point (Meta)</label>
                             <div className="flex bg-[#020617] p-1 rounded-lg border border-slate-800">
-                                {['70', '72', '75'].map(bp => (
+                                {['65', '70', '72', '75'].map(bp => (
                                     <button
                                         key={bp}
                                         type="button"
