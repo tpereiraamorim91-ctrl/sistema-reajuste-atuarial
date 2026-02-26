@@ -11,7 +11,7 @@ import {
 
 // --- CONFIGURAÇÃO E DADOS (SAFRA 2026 - AUDITADO) ---
 const CONFIG = {
-  VERSION: "17.1.0 (Quantum Analytics)",
+  VERSION: "17.2.0 (Quantum Analytics Final)",
   LAST_UPDATE: "26/02/2026",
   
   POOL_2026: {
@@ -65,6 +65,7 @@ interface FormData {
 }
 
 interface AnalysisResult {
+  companySize: CompanySize; // CORREÇÃO: Propriedade adicionada
   technicalReadjustment: number;
   proposedReadjustment: number;
   targetReadjustment: number;
@@ -290,7 +291,7 @@ export default function App() {
       }
       
       const technicalFinal = manualTechInput !== null ? manualTechInput : technicalNeedRaw;
-      const isManualOverride = manualTechInput !== null; // <--- CORREÇÃO AQUI
+      const isManualOverride = manualTechInput !== null;
 
       // --- ESTRATÉGIA DE ANCORAGEM (TARGET RATE) ---
       let targetRate = 0;
@@ -340,6 +341,7 @@ export default function App() {
       );
 
       setResult({
+        companySize: formData.companySize, // CORREÇÃO: Propriedade preenchida
         technicalReadjustment: parseFloat(technicalFinal.toFixed(2)),
         proposedReadjustment: proposed,
         targetReadjustment: parseFloat(targetRate.toFixed(2)),
@@ -395,7 +397,7 @@ export default function App() {
                     CEDO <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-emerald-400">SEGUROS</span>
                   </h1>
                   <p className="text-[9px] text-cyan-500/80 font-mono font-bold tracking-[0.3em] uppercase mt-0.5">
-                    Quantum Actuarial Core v17.1
+                    Quantum Actuarial Core v17.2
                   </p>
               </div>
           </div>
